@@ -1,17 +1,25 @@
 cmake_minimum_required(VERSION 3.16)
-project(CubicaWorld LANGUAGES CXX)
+project(CubicaWorld LANGUAGES C CXX)
 
+set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(OpenGL REQUIRED)
 find_package(glfw3 CONFIG REQUIRED)
 
+# GLAD
+add_library(glad src/glad.c)
+target_include_directories(glad PUBLIC include)
+
 add_executable(cubica
     src/main.cpp
 )
 
 target_link_libraries(cubica
+    PRIVATE
+    glad
     glfw
     OpenGL::GL
 )

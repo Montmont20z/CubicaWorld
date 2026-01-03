@@ -111,7 +111,8 @@ Don't Even Think About (Scope Creep):
 ❌ Advanced lighting (shadows, AO)
 ❌ Shaders/post-processing
 
-```classDiagram
+```mermaid
+classDiagram
     %% Core Engine
     class Game {
         -Window window
