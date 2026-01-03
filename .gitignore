@@ -1,0 +1,9 @@
+build/**
+cmake-build-*/
+
+# =========================
+# IDE / Editor
+# =========================
+.vscode/**
+!.vscode/settings.json
+!.vscode/extensions.json
