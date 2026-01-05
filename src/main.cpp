@@ -2,53 +2,10 @@
 #include <GLFW/glfw3.h>
 #include <iostream>
 #include <math.h>
+#include "Shader.hpp"
 
 const int SCREEN_WIDTH = 800;
 const int SCREEN_HEIGHT = 600;
-
-
-const char* vertexShaderSource = "#version 330 core\n"
-    "layout (location = 0) in vec3 aPos;\n" // declare vertex attribute name aPos (vec3). location=0 fixes the attribute location so the application can bind vertex data to location 0 with glVertexAttribPointer(0, ...) 
-    "void main()\n"
-    "{\n"
-    "   gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);\n" // Assigns clip-space position for this vertex // gl_Position is a built-in output the pipeline uses for clipping and rasterization
-    "}\0";
-const char* fragmentShaderSource = "#version 330 core\n"
-    "out vec4 FragColor;\n" // declare the output color variable. Written into framebuffer for each fragment/pixel
-    "void main()\n"
-    "{\n"
-    "   FragColor = vec4(0.8f, 0.3f, 0.00f,1.0f);\n" // Sets the output color to an RGBA value
-    "}\n\0";
-
-// Compile shader and print errors if any
-auto compile_shader = [](GLuint shader) {
-    GLint success = 0;
-    glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
-    if (!success) {
-        GLint logLen = 0;
-        glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &logLen);
-        std::string log(logLen, ' ');
-        glGetShaderInfoLog(shader, logLen, nullptr, &log[0]);
-        std::cerr << "Shader compile error:\n" << log << std::endl;
-        return false;
-    }
-    return true;
-};
-
-// Link program and print errors if any
-auto link_program = [](GLuint prog) {
-    GLint success = 0;
-    glGetProgramiv(prog, GL_LINK_STATUS, &success);
-    if (!success) {
-        GLint logLen = 0;
-        glGetProgramiv(prog, GL_INFO_LOG_LENGTH, &logLen);
-        std::string log(logLen, ' ');
-        glGetProgramInfoLog(prog, logLen, nullptr, &log[0]);
-        std::cerr << "Program link error:\n" << log << std::endl;
-        return false;
-    }
-    return true;
-};  
 
 int main(){
     std::cout << "Hello, World!3333" << std::endl;
@@ -67,22 +24,18 @@ int main(){
     glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GLFW_TRUE);
     
     GLfloat vertices[] = {
-        -0.8f, -0.5f, 0.0f,
-        0.9f, -0.5f, 0.0f,
-        0.0f, 0.5f, 0.0f
+        -0.5f, -0.5f * float(sqrt(3)) / 3, 0.0f, // lower left
+        0.5f, -0.5f * float(sqrt(3)) / 3, 0.0f, // lower right
+        0.0f, 0.5f * float(sqrt(3)) * 2 / 3, 0.0f, // upper corner
+        -0.5f / 2, 0.5f * float(sqrt(3)) / 6, 0.0f, // inner left
+        0.5f / 2, 0.5f * float(sqrt(3)) / 6, 0.0f, // inner right
+        0.0f, -0.5f * float(sqrt(3)) / 3, 0.0f, // inner down
     };
     
-    GLfloat quadVertices[] = {
-        -0.5f,  0.5f, 0.0f, // 0: top-left
-         0.5f,  0.5f, 0.0f, // 1: top-right
-         0.5f, -0.5f, 0.0f, // 2: bottom-right
-        -0.5f, -0.5f, 0.0f  // 3: bottom-left
-    };
-    
-    // Indices for two triangles (0,1,2) and (2,3,0)
-    unsigned int quadIndices[] = {
-        0, 1, 2,
-        2, 3, 0
+    unsigned int vertexIndices[] = {
+        0, 5, 3, // lower left
+        3, 2, 4,
+        5, 1, 4,
     };
     
     // create the window
@@ -99,40 +52,14 @@ int main(){
         std::cerr << "Failed to initialize GLAD\n";
         return -1;
     }
+    
+    // Enable V-sync
+    glfwSwapInterval(1);
 
     glViewport(0,0, SCREEN_WIDTH, SCREEN_HEIGHT); // Maps normalized device coordinates (NDC, range [-1,1]) to window pixels. // need to change Screen width & height if resize window
     
-    // Shader creation, source upload, compilation
-    GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER); // Allocates a new shader object of type vertex and returns its handle.
-    glShaderSource(vertexShader, 1, &vertexShaderSource, nullptr); // Uploads the GLSL source string(s) into the shader object.
-    glCompileShader(vertexShader); // Compiles the shader source into GPU-executable code.
-    if (!compile_shader(vertexShader)) { 
-        std::cerr << "Failed to complied vetex Shader" << std::endl;
-        return -1; 
-    }
+    Shader shader("shaders/basic.vert.glsl", "shaders/basic.frag.glsl");
     
-    GLuint fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fragmentShader, 1, &fragmentShaderSource, nullptr);
-    glCompileShader(fragmentShader);
-    if (!compile_shader(fragmentShader)) { 
-        std::cerr << "Failed to complied fragment Shader" << std::endl;
-        return -1; 
-    }
-
-    // Program creation, attach, link
-    GLuint shaderProgram = glCreateProgram(); // Creates a shader program object that will combine (link) vertex and fragment stages.
-    // Attaches compiled shader objects to the program.
-    glAttachShader(shaderProgram, vertexShader);
-    glAttachShader(shaderProgram, fragmentShader);
-    glLinkProgram(shaderProgram); // resolves attribute locations, varyings, types and builds a final GPU pipeline object you can use with glUseProgram
-    if (!link_program(shaderProgram)) {
-        std::cerr << "Failed to link Shader" << std::endl;
-        return -1; 
-    }   
-    
-    // clean up shader
-    glDeleteShader(vertexShader);
-    glDeleteShader(fragmentShader);
     
     GLuint VAO, VBO, EBO; // VAO (Vertex Array Object), VBO (Vertex Buffer Object), EBO (Element Buffer Object) or Index buffer
     // Create object names for VAO and VBO.
@@ -144,11 +71,11 @@ int main(){
                             
     // upload vertex data (to GPU)
     glBindBuffer(GL_ARRAY_BUFFER, VBO); // Bind the buffer as the current array buffer. Subsequent glBufferData/glVertexAttribPointer calls refer to this buffer.
-    glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), quadVertices, GL_STATIC_DRAW); // GL_STATIC_DRAW hints that data will not change frequenctly
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW); // GL_STATIC_DRAW hints that data will not change frequenctly
     
     // upload index data — (EBO binding is stored in the VAO) - (to GPU)
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(quadIndices), quadIndices, GL_STATIC_DRAW);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(vertexIndices), vertexIndices, GL_STATIC_DRAW);
 
     // tells OpenGL how to read the vertex data via VAO
     // This line records inside the VAO how attribute location 0 should fetch its data from a VBO.
@@ -177,11 +104,12 @@ int main(){
         // render
         glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
-        glUseProgram(shaderProgram);
+        // glUseProgram(shaderProgram);
+        shader.Activate();
         glBindVertexArray(VAO);
         
         // glDrawArrays(GL_TRIANGLES, 0, 3); // draw triangle
-        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0); 
+        glDrawElements(GL_TRIANGLES, 9, GL_UNSIGNED_INT, 0); 
 
         
 
@@ -195,7 +123,7 @@ int main(){
     glDeleteVertexArrays(1, &VAO);
     glDeleteBuffers(1, &VBO);
     glDeleteBuffers(1, &EBO);
-    glDeleteProgram(shaderProgram);
+    // glDeleteProgram(shaderProgram);
 
     glfwDestroyWindow(window);
     glfwTerminate();
