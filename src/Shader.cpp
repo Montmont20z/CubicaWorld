@@ -5,7 +5,7 @@
 
 using namespace std;
 
-std::string get_file_content(const char *filename)
+std::string get_file_content(const std::string& filename)
 {
     std::ifstream in(filename, std::ios::binary); // open the file for input, read byte as-is (no conversion) (no new line conversion (\r\n -> \n))
     if(!in){ // check if file is successfully opened
@@ -30,7 +30,6 @@ std::string get_file_content(const char *filename)
 }
 
 // Compile shader and print errors if any
-// auto compile_shader = [](GLuint shader) {
 bool compile_shader(GLuint shader){
     GLint success = 0;
     glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
@@ -46,7 +45,6 @@ bool compile_shader(GLuint shader){
 };
 
 // Link program and print errors if any
-// auto link_program = [](GLuint prog) {
 bool link_program(GLuint prog){
     GLint success = 0;
     glGetProgramiv(prog, GL_LINK_STATUS, &success);
@@ -60,8 +58,8 @@ bool link_program(GLuint prog){
     }
     return true;
 };  
-
-Shader::Shader(const char *vertexFile, const char *fragmentFile)
+Shader::Shader(const std::string& vertexFile, const std::string& fragmentFile)
+// Shader::Shader(const char *vertexFile, const char *fragmentFile)
 {
     string vertexCode = get_file_content(vertexFile);
     string fragmentCode = get_file_content(fragmentFile);
@@ -102,7 +100,7 @@ Shader::Shader(const char *vertexFile, const char *fragmentFile)
     glDeleteShader(fragmentShader);
 }
 
-Shader::~Shader()
+Shader::~Shader() noexcept
 {
     // Do not throw from destructor. If context is invalid, glDeleteProgram may be a no-op or cause error;
     // ensure you destroy Shader objects before destroying the GL context.
@@ -112,9 +110,34 @@ Shader::~Shader()
     }
 }
 
-void Shader::Activate()
+// This constructor is called when a Shader is constructed from a temporary or movable object.
+/*Eg
+Shader a("a.vert", "b.frag");
+Shader b = std::move(a);
+*/
+Shader::Shader(Shader &&other) noexcept : ID(other.ID)
 {
-    glUseProgram(ID);
+    other.ID = 0;
+}
+
+Shader &Shader::operator=(Shader &&other) noexcept
+{
+    if (this != &other){ // Protects against self-move Eg. a = std::move(a);
+        // Release current resource (mirror a destructor)
+        if (ID != 0){
+            glDeleteProgram(ID);
+        }
+        // Move
+        ID = other.ID;
+        other.ID = 0;
+    }
+    return *this;
+}
+
+void Shader::Activate() const noexcept
+{
+    if (ID != 0)
+        glUseProgram(ID);
 }
 
 /* void Shader::Delete()

@@ -16,6 +16,9 @@ target_include_directories(glad PUBLIC include)
 add_executable(cubica
     src/main.cpp
     src/Shader.cpp
+    src/VAO.cpp
+    src/VBO.cpp
+    src/EBO.cpp
 )
 
 target_link_libraries(cubica

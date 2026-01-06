@@ -3,6 +3,9 @@
 #include <iostream>
 #include <math.h>
 #include "Shader.hpp"
+#include "VAO.hpp"
+#include "VBO.hpp"
+#include "EBO.hpp"
 
 const int SCREEN_WIDTH = 800;
 const int SCREEN_HEIGHT = 600;
@@ -61,39 +64,20 @@ int main(){
     Shader shader("shaders/basic.vert.glsl", "shaders/basic.frag.glsl");
     
     
-    GLuint VAO, VBO, EBO; // VAO (Vertex Array Object), VBO (Vertex Buffer Object), EBO (Element Buffer Object) or Index buffer
-    // Create object names for VAO and VBO.
-    glGenVertexArrays(1, &VAO);
-    glGenBuffers(1, &VBO); 
-    glGenBuffers(1, &EBO); 
+    // VAO (Vertex Array Object), VBO (Vertex Buffer Object), EBO (Element Buffer Object) or Index buffer
+    VAO VAO1;
+    VBO VBO1(vertices, sizeof(vertices));
 
-    glBindVertexArray(VAO); // Bind the VAO. A VAO stores vertex attribute state (which VBOs to use, [x,y,z, nx, ny, nz, u, v, ...] ).
-                            
-    // upload vertex data (to GPU)
-    glBindBuffer(GL_ARRAY_BUFFER, VBO); // Bind the buffer as the current array buffer. Subsequent glBufferData/glVertexAttribPointer calls refer to this buffer.
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW); // GL_STATIC_DRAW hints that data will not change frequenctly
+    VAO1.Bind();
+    VAO1.LinkVBO(VBO1, 0);
     
-    // upload index data — (EBO binding is stored in the VAO) - (to GPU)
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(vertexIndices), vertexIndices, GL_STATIC_DRAW);
-
-    // tells OpenGL how to read the vertex data via VAO
-    // This line records inside the VAO how attribute location 0 should fetch its data from a VBO.
-    glVertexAttribPointer(
-        0,                      // attribute location in shader
-        3,                      // number of components
-        GL_FLOAT,               // data type
-        GL_FALSE,               // normalize?
-        3 * sizeof(float),      // stride
-        (void*)0                // offset
-    );
-
-    glEnableVertexAttribArray(0); // Enables the attribute so the GPU will fetch it for each vertex when drawing.
+    // create EBO while VAO is bound so VAO stores element array binding
+    EBO EBO1(vertexIndices, sizeof(vertexIndices));
     
-    // unbind VBO
-    glBindBuffer(GL_ARRAY_BUFFER, 0); 
-    glBindVertexArray(0);
-    
+    // unbind VAO, VBO, EBO
+    VBO1.Unbind();
+    VAO1.Unbind();
+    EBO1.Unbind();
 
     // main game loop
     while(!glfwWindowShouldClose(window)){
@@ -104,9 +88,8 @@ int main(){
         // render
         glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
-        // glUseProgram(shaderProgram);
         shader.Activate();
-        glBindVertexArray(VAO);
+        VAO1.Bind();
         
         // glDrawArrays(GL_TRIANGLES, 0, 3); // draw triangle
         glDrawElements(GL_TRIANGLES, 9, GL_UNSIGNED_INT, 0); 
@@ -120,9 +103,9 @@ int main(){
     }
 
     // clean up shader
-    glDeleteVertexArrays(1, &VAO);
-    glDeleteBuffers(1, &VBO);
-    glDeleteBuffers(1, &EBO);
+    // glDeleteVertexArrays(1, &VAO);
+    // glDeleteBuffers(1, &VBO);
+    // glDeleteBuffers(1, &EBO);
     // glDeleteProgram(shaderProgram);
 
     glfwDestroyWindow(window);
