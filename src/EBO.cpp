@@ -15,8 +15,7 @@ EBO::~EBO() noexcept
 
 void EBO::Bind() const
 {
-    // upload vertex data (to GPU)
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ID); // Bind the buffer as the current array buffer. Subsequent glBufferData/glVertexAttribPointer calls refer to this buffer.
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ID); 
 }
 
 void EBO::Unbind() const

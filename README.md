@@ -93,6 +93,49 @@ Should Have (Makes it Fun):
 ✅ Block highlight
 ✅ Textures
 
+### Most important technical demo features
+1. Rendering Performance Optimization
+- Greedy meshing algorithm 
+    > Combine adjeacent voxel to reduce draw call
+- Frustum culling 
+    > dont renderer chunck outside camera view
+- Occlusion culling
+    > dont render chunck behind other chunks
+- Level of details 
+    > Reduce detial for distance chunck
+2. Chuck Management
+- Infinite world generation
+- Multithreading
+    > Generate/mesh chunck on background threads
+- Memory management
+    > Pool chunck, smart caching
+- Save/load system
+    > serialize world data effeciently
+3. Procedural generation
+- Perlin/Simplex noise for terrain
+- Biomes system
+- cave generation 3D noise for underground
+- Struture generation - trees, building
+4. Others
+- Custom Shader for lighting, water, transparency
+- Deferred rendering or forward rendering
+- Ambient occlusion for visual quality
+
+### Document these
+1. Performance metrics
+    - eg render 100,000 visible faces at 60 FPS
+    - reduce draw call by 90% using greedy meshing algo
+    - before and after optimization graph
+2. Technical decision
+    - why specific algorithm 
+    - trade off considered
+    - problem solve
+3. code quality 
+    - architecture
+    - well comment complex section
+    - unit test for critical section
+4. Video
+
 Nice to Have (Polish):
 
 ⚠️ Water (complex!)

@@ -27,12 +27,13 @@ int main(){
     glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GLFW_TRUE);
     
     GLfloat vertices[] = {
-        -0.5f, -0.5f * float(sqrt(3)) / 3, 0.0f, // lower left
-        0.5f, -0.5f * float(sqrt(3)) / 3, 0.0f, // lower right
-        0.0f, 0.5f * float(sqrt(3)) * 2 / 3, 0.0f, // upper corner
-        -0.5f / 2, 0.5f * float(sqrt(3)) / 6, 0.0f, // inner left
-        0.5f / 2, 0.5f * float(sqrt(3)) / 6, 0.0f, // inner right
-        0.0f, -0.5f * float(sqrt(3)) / 3, 0.0f, // inner down
+        //  ----------------Position -------------// --- Color ---------//
+        -0.5f, -0.5f * float(sqrt(3)) / 3, 0.0f,    0.5f, 0.5f, 0.5f, // lower left
+        0.5f, -0.5f * float(sqrt(3)) / 3, 0.0f,     1.0f, 0.5f, 0.2f, // lower right
+        0.0f, 0.5f * float(sqrt(3)) * 2 / 3, 0.0f,  1.0f, 0.5f, 0.2f, // upper corner
+        -0.5f / 2, 0.5f * float(sqrt(3)) / 6, 0.0f, 0.0f, 0.0f, 0.0f, // inner left
+        0.5f / 2, 0.5f * float(sqrt(3)) / 6, 0.0f,  0.0f, 0.0f, 0.0f, // inner right
+        0.0f, -0.5f * float(sqrt(3)) / 3, 0.0f,     0.0f, 0.0f, 0.0f, // inner down
     };
     
     unsigned int vertexIndices[] = {
@@ -69,15 +70,19 @@ int main(){
     VBO VBO1(vertices, sizeof(vertices));
 
     VAO1.Bind();
-    VAO1.LinkVBO(VBO1, 0);
+    VAO1.LinkAttrib(VBO1, 0, 3, GL_FLOAT, 6 * sizeof(float), (void*)0);
+    VAO1.LinkAttrib(VBO1, 1, 3, GL_FLOAT, 6 * sizeof(float), (void*)(3 * sizeof(float)));
     
     // create EBO while VAO is bound so VAO stores element array binding
     EBO EBO1(vertexIndices, sizeof(vertexIndices));
+    EBO1.Bind();
     
     // unbind VAO, VBO, EBO
     VBO1.Unbind();
     VAO1.Unbind();
     EBO1.Unbind();
+    
+    GLuint uniID = glGetUniformLocation(shader.ID, "scale");
 
     // main game loop
     while(!glfwWindowShouldClose(window)){
@@ -89,14 +94,11 @@ int main(){
         glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
         shader.Activate();
+        glUniform1f(uniID, 0.5f);
         VAO1.Bind();
         
         // glDrawArrays(GL_TRIANGLES, 0, 3); // draw triangle
         glDrawElements(GL_TRIANGLES, 9, GL_UNSIGNED_INT, 0); 
-
-        
-
-
 
         // swap buffers
         glfwSwapBuffers(window);
