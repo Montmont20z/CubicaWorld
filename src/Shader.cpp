@@ -30,7 +30,7 @@ std::string get_file_content(const std::string& filename)
 }
 
 // Compile shader and print errors if any
-bool compile_shader(GLuint shader){
+bool isCompileErrors(GLuint shader){
     GLint success = 0;
     glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
     if (!success) {
@@ -45,7 +45,7 @@ bool compile_shader(GLuint shader){
 };
 
 // Link program and print errors if any
-bool link_program(GLuint prog){
+bool isLinkErrors(GLuint prog){
     GLint success = 0;
     glGetProgramiv(prog, GL_LINK_STATUS, &success);
     if (!success) {
@@ -71,7 +71,7 @@ Shader::Shader(const std::string& vertexFile, const std::string& fragmentFile)
     GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER); // Allocates a new shader object of type vertex and returns its handle.
     glShaderSource(vertexShader, 1, &vertexSource, nullptr); // Uploads the GLSL source string(s) into the shader object.
     glCompileShader(vertexShader); // Compiles the shader source into GPU-executable code.
-    if (!compile_shader(vertexShader)) { 
+    if (!isCompileErrors(vertexShader)) { 
         std::cerr << "Failed to complied vetex Shader" << std::endl;
         std::abort();
     }
@@ -79,7 +79,7 @@ Shader::Shader(const std::string& vertexFile, const std::string& fragmentFile)
     GLuint fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
     glShaderSource(fragmentShader, 1, &fragmentSource, nullptr);
     glCompileShader(fragmentShader);
-    if (!compile_shader(fragmentShader)) { 
+    if (!isCompileErrors(fragmentShader)) { 
         std::cerr << "Failed to complied fragment Shader" << std::endl;
         std::abort();
     }
@@ -90,7 +90,7 @@ Shader::Shader(const std::string& vertexFile, const std::string& fragmentFile)
     glAttachShader(ID, vertexShader);
     glAttachShader(ID, fragmentShader);
     glLinkProgram(ID); // resolves attribute locations, varyings, types and builds a final GPU pipeline object you can use with glUseProgram
-    if (!link_program(ID)) {
+    if (!isLinkErrors(ID)) {
         std::cerr << "Failed to link Shader" << std::endl;
         std::abort();
     }   
@@ -139,10 +139,3 @@ void Shader::Activate() const noexcept
     if (ID != 0)
         glUseProgram(ID);
 }
-
-/* void Shader::Delete()
-{
-    glDeleteProgram(ID);
-}
- */
-

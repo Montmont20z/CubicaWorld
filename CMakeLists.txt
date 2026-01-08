@@ -19,6 +19,7 @@ add_executable(cubica
     src/VAO.cpp
     src/VBO.cpp
     src/EBO.cpp
+    src/stb.cpp
 )
 
 target_link_libraries(cubica
@@ -29,11 +30,15 @@ target_link_libraries(cubica
 )
 
 
-# ---------- Copy shaders directory to the runtime (binary) folder ----------
+# ---------- Copy shaders & assets directory to the runtime (binary) folder ----------
 add_custom_command(TARGET cubica POST_BUILD
   COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_FILE_DIR:cubica>/shaders
   COMMAND ${CMAKE_COMMAND} -E copy_directory
           ${CMAKE_SOURCE_DIR}/shaders
-          $<TARGET_FILE_DIR:cubica>/shaders
+          $<TARGET_FILE_DIR:cubica>/shader
+  COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_FILE_DIR:cubica>/assets
+  COMMAND ${CMAKE_COMMAND} -E copy_directory
+          ${CMAKE_SOURCE_DIR}/assets
+          $<TARGET_FILE_DIR:cubica>/assets
 )
 # --------------------------------------------------------------------------
