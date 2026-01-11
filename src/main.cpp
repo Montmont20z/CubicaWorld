@@ -4,11 +4,14 @@
 #include <math.h>
 #include <stb/stb_image.h>
 #include <vector>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 #include "Shader.hpp"
 #include "VAO.hpp"
 #include "VBO.hpp"
 #include "EBO.hpp"
+#include "Texture.hpp"
 
 const int SCREEN_WIDTH = 800;
 const int SCREEN_HEIGHT = 800;
@@ -86,36 +89,12 @@ int main(){
     GLuint uniID = glGetUniformLocation(shader.ID, "scale");
     
     // Texture
-    int widthImg, heightImg, numColCh;
-    stbi_set_flip_vertically_on_load(true);
-    unsigned char* bytes = stbi_load("assets/pop-cat.jpg", &widthImg, &heightImg, &numColCh, 0);
-   
-    // std::vector<GLuint*> textures;
-    GLuint textureID;
-    glGenTextures(1, &textureID);
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, textureID);
-    
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST); // last parameter can be GL_NEAREST or GL_LINEAR. GL_NEAREST result in pixel image, GL_LINEAR result in blur image
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST); // last parameter can be GL_NEAREST or GL_LINEAR. GL_NEAREST result in pixel image, GL_LINEAR result in blur image
-    // Axis from x,y,z to s,t,r
-    // s,t,r -> GL_TEXTURE_WRAP_S, GL_TEXTURE_WRAP_T, GL_TEXTURE_WRAP_R
-    // Options for last param (GL_REPEAT, GL_MIRROR_REPEAT, GL_CAMP_TO_EDGE, GL_CAMP_TO_BORDER)
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    Texture popCat("assets/pop-cat.jpg", GL_TEXTURE_2D, GL_TEXTURE0, GL_RGB, GL_UNSIGNED_BYTE);
+    popCat.texUnit(shader, "tex0", 0);
 
-    // For GL_CAMP_TO_BORDER
-    // float flatColor[] = {1.0f,1.0f,1.0f,1.0f};
-    // glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, flatColor); 
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, widthImg, heightImg, 0, GL_RGB, GL_UNSIGNED_BYTE, bytes);
-    glGenerateMipmap(GL_TEXTURE_2D);
-    
-    stbi_image_free(bytes);
-    glBindTexture(GL_TEXTURE_2D, 0);
-
-    GLuint tex0Uni = glGetUniformLocation(shader.ID, "tex0");
-    shader.Activate();
-    glUniform1f(tex0Uni, 0);
+    // GLuint tex0Uni = glGetUniformLocation(shader.ID, "tex0");
+    // shader.Activate();
+    // glUniform1f(tex0Uni, 0);
 
     // main game loop
     while(!glfwWindowShouldClose(window)){
@@ -127,12 +106,26 @@ int main(){
         glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
         shader.Activate();
-        glUniform1f(uniID, 1.0f);
-        glBindTexture(GL_TEXTURE_2D, textureID);
+        
+        glm::mat4 model = glm::mat4(1.0f);
+        glm::mat4 view = glm::mat4(1.0f);
+        glm::mat4 proj = glm::mat4(1.0f);
+        view = glm::translate(view, glm::vec3(0.0f,-0.5f,-2.0f));
+        proj = glm::perspective(glm::radians(45.0f), static_cast<float>(SCREEN_WIDTH/SCREEN_HEIGHT), 0.1f, 100.0f); // Fov, aspect ratio, near field, far field
+                                                                                                                    
+        int modelLoc = glGetUniformLocation(shader.ID, "model");
+        glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
+        int viewLoc = glGetUniformLocation(shader.ID, "view");
+        glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
+        int projLoc = glGetUniformLocation(shader.ID, "proj");
+        glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(proj));
+
+        glUniform1f(uniID, 1.0f); // set scale to 1x on runtime
+        popCat.Bind(0);
         VAO1.Bind();
         
         // glDrawArrays(GL_TRIANGLES, 0, 3); // draw triangle
-        glDrawElements(GL_TRIANGLES, 9, GL_UNSIGNED_INT, 0); 
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0); 
 
         // swap buffers
         glfwSwapBuffers(window);
@@ -143,7 +136,7 @@ int main(){
     // glDeleteBuffers(1, &VBO);
     // glDeleteBuffers(1, &EBO);
     // glDeleteProgram(shaderProgram);
-    glDeleteTextures(1, &textureID);
+    // glDeleteTextures(1, &popCat.ID);
 
     glfwDestroyWindow(window);
     glfwTerminate();

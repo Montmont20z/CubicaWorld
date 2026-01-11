@@ -8,7 +8,7 @@ class Shader
 {
 private:
 public:
-    GLuint ID = 0;
+    GLuint ID{0};
     explicit Shader(const std::string& vertexFile, const std::string& fragmentFile);
     ~Shader() noexcept;
     

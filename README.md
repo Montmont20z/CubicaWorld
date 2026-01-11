@@ -1,9 +1,7 @@
 # High-level architecture
-
 Minecraft-clone
 
 Core:
-
 C++17 (both repos use this, you're familiar with it)
 Modern OpenGL 3.3+ (core profile, not compatibility)
 GLFW for window/input (lightweight, standard)
@@ -14,40 +12,41 @@ stb_image for texture loading (single header library)
 
 ## Realistic 1.5 month scope:
 ### Week 1-2: Foundation
-✅ Window + Input
-GLFW window
+#### Window + Input
+✅ GLFW window
 Mouse capture
 Keyboard input
+Camera movement
 
-✅ Basic Rendering
+#### Basic Rendering
 
-Shader system
+✅ Shader system
 Render cubes
 Camera matrix (view + projection)
 Depth testing
 
 ### Week 3: Chunk System
-✅ World Generation
+#### World Generation
 
 16x256x16 chunks
 Chunk meshing (combine cubes into single mesh)
 Face culling
 Simple height-based terrain (y = noise * 64)
 
-✅ Chunk Management
+#### Chunk Management
 
 Load chunks around player
 Unload far chunks
 Frustum culling (don't render chunks behind you)
 
 ### Week 4: Interaction
-✅ Player Physics
+#### Player Physics
 
 AABB collision with blocks
 Gravity
 Jumping
 
-✅ Block Editing
+ #### Block Editing
 
 Voxel ray traversal (which block are you looking at?)
 Break block
@@ -55,7 +54,7 @@ Place block
 Update chunk mesh when blocks change
 
 ### Week 5-6: Polish
-✅ Making it Feel Good
+####  Making it Feel Good
 
 Block breaking animation/progress
 Place block at correct position
@@ -63,12 +62,12 @@ Multiple block types (5-10 types)
 Basic inventory/hotbar (press 1-9 to switch blocks)
 Crosshair
 
-✅ Performance
+#### Performance
 
 Greedy meshing (optimize mesh generation)
 Multithreading chunk generation (if time)
 
-✅ Visuals
+#### Visuals
 
 Textures
 Basic lighting (sky light + simple shading)
@@ -76,8 +75,8 @@ Fog
 Sky color
 
 
-Feature Priority List
-Must Have (Core Gameplay):
+### Feature For Gameplay List
+#### Must Have (Core Gameplay):
 
 ✅ Infinite terrain
 ✅ Player movement + collision
