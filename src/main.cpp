@@ -12,11 +12,23 @@
 #include "VBO.hpp"
 #include "EBO.hpp"
 #include "Texture.hpp"
+#include "main.h"
 
 const int SCREEN_WIDTH = 800;
 const int SCREEN_HEIGHT = 800;
 
+static void errorCallback(int error, const char* description){
+    fprintf(stderr, "Error: %s\n", description);
+}
+
+static void processInput(GLFWwindow* window){
+    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS){
+        glfwSetWindowShouldClose(window, true);
+    }
+}
+
 int main(){
+    glfwSetErrorCallback(errorCallback);
     std::cout << "Hello, World!3333" << std::endl;
     
     /* Initialization */
@@ -34,15 +46,20 @@ int main(){
     
     GLfloat vertices[] = {
         //  Position ------// --- Color ---------// ----- Texture
-        -0.5f, -0.5, 0.0f,    1.0f, 0.0f, 0.0f,    0.0f, 0.0f, // lower left
-        -0.5f, 0.5f, 0.0f,     0.0f, 1.0f, 0.0f,   0.0f, 1.0f,// top left
-        0.5f, 0.5f, 0.0f,     0.0f, 0.0f, 1.0f,    1.0f, 1.0f,// top right
-        0.5f, -0.5f, 0.0f,    1.0f, 1.0f, 1.0f,    1.0f, 0.0f,// lower right
+        -0.5f, 0.0f,  0.5f,    1.0f, 0.0f, 0.0f,    0.0f, 0.0f, 
+        -0.5f, 0.0f, -0.5f,     0.0f, 1.0f, 0.0f,   1.0f, 0.0f,
+        0.5f,  0.0f, -0.5f,     0.0f, 0.0f, 1.0f,    0.0f, 0.0f,
+        0.5f,  0.0f,  0.5f,    1.0f, 1.0f, 1.0f,     1.0f, 0.0f,
+        0.0f,  0.8f,  0.0f,    1.0f, 1.0f, 1.0f,     0.5f, 1.0f, // pyramid top corner
     };
     
     unsigned int vertexIndices[] = {
-        0,1,2,
-        2,3,0
+        0,1,2, // bottom 1
+        2,3,0, // bottom 2
+        0,1,4,
+        1,2,4,
+        2,3,4,
+        3,0,4,
     };
     
     // create the window
@@ -92,24 +109,33 @@ int main(){
     Texture popCat("assets/pop-cat.jpg", GL_TEXTURE_2D, GL_TEXTURE0, GL_RGB, GL_UNSIGNED_BYTE);
     popCat.texUnit(shader, "tex0", 0);
 
-    // GLuint tex0Uni = glGetUniformLocation(shader.ID, "tex0");
-    // shader.Activate();
-    // glUniform1f(tex0Uni, 0);
+    float rotation = 0.0f;
+    float prevTime = glfwGetTime();
+    
+    glEnable(GL_DEPTH_TEST);
 
     // main game loop
     while(!glfwWindowShouldClose(window)){
         /* check game state -> input -> update -> render */
         // process input
         glfwPollEvents();
+        processInput(window);
         
         // render
         glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         shader.Activate();
+        
+        float currentTime = glfwGetTime();
+        if (currentTime - prevTime >= 1/60){
+            rotation += 0.5f;
+            prevTime = currentTime;
+        }
         
         glm::mat4 model = glm::mat4(1.0f);
         glm::mat4 view = glm::mat4(1.0f);
         glm::mat4 proj = glm::mat4(1.0f);
+        model = glm::rotate(model, glm::radians(rotation), glm::vec3(1.0f,0.0f,0.0f));
         view = glm::translate(view, glm::vec3(0.0f,-0.5f,-2.0f));
         proj = glm::perspective(glm::radians(45.0f), static_cast<float>(SCREEN_WIDTH/SCREEN_HEIGHT), 0.1f, 100.0f); // Fov, aspect ratio, near field, far field
                                                                                                                     
@@ -125,23 +151,18 @@ int main(){
         VAO1.Bind();
         
         // glDrawArrays(GL_TRIANGLES, 0, 3); // draw triangle
-        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0); 
+        glDrawElements(GL_TRIANGLES, sizeof(vertexIndices)/sizeof(int), GL_UNSIGNED_INT, 0); 
 
         // swap buffers
         glfwSwapBuffers(window);
     }
 
-    // clean up shader
-    // glDeleteVertexArrays(1, &VAO);
-    // glDeleteBuffers(1, &VBO);
-    // glDeleteBuffers(1, &EBO);
-    // glDeleteProgram(shaderProgram);
-    // glDeleteTextures(1, &popCat.ID);
-
+    // clean up resources
     glfwDestroyWindow(window);
     glfwTerminate();
     return 0;
 }
+
 
 
 

@@ -9,16 +9,14 @@ std::string get_file_content(const std::string& filename)
 {
     std::ifstream in(filename, std::ios::binary); // open the file for input, read byte as-is (no conversion) (no new line conversion (\r\n -> \n))
     if(!in){ // check if file is successfully opened
-        std::cerr << "Failed to open file: " << filename << std::endl;
-        std::abort();
+        throw std::runtime_error("Failed to open file: " + filename);
     }
     std::string contents;
     in.seekg(0, std::ios::end); // move the file cursor to end of the file
 
     auto size = in.tellg(); // return the current cursor position (get file size in byte).
     if (size <= 0){
-        std::cerr << "Shader file '" << filename << "' is empty or unreadable." << std::endl;
-        std::abort();
+        throw std::runtime_error("Shader file: " + filename + " is empty or unreadable");
     } 
     contents.resize(static_cast<size_t>(size)); // .resize() allocate exactly enough memory to hold the file's content
 
@@ -72,16 +70,16 @@ Shader::Shader(const std::string& vertexFile, const std::string& fragmentFile)
     glShaderSource(vertexShader, 1, &vertexSource, nullptr); // Uploads the GLSL source string(s) into the shader object.
     glCompileShader(vertexShader); // Compiles the shader source into GPU-executable code.
     if (!isCompileErrors(vertexShader)) { 
-        std::cerr << "Failed to complied vetex Shader" << std::endl;
-        std::abort();
+        glDeleteShader(vertexShader);
+        throw std::runtime_error("Failed to complied vertex shader");
     }
     
     GLuint fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
     glShaderSource(fragmentShader, 1, &fragmentSource, nullptr);
     glCompileShader(fragmentShader);
     if (!isCompileErrors(fragmentShader)) { 
-        std::cerr << "Failed to complied fragment Shader" << std::endl;
-        std::abort();
+        glDeleteShader(fragmentShader);
+        throw std::runtime_error("Failed to complied fragment Shader");
     }
 
     // Program creation, attach, link
@@ -91,8 +89,8 @@ Shader::Shader(const std::string& vertexFile, const std::string& fragmentFile)
     glAttachShader(ID, fragmentShader);
     glLinkProgram(ID); // resolves attribute locations, varyings, types and builds a final GPU pipeline object you can use with glUseProgram
     if (!isLinkErrors(ID)) {
-        std::cerr << "Failed to link Shader" << std::endl;
-        std::abort();
+        glDeleteProgram(ID);
+        throw std::runtime_error("Failed to link shader");
     }   
     
     // clean up shader

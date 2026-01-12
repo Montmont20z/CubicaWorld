@@ -12,15 +12,14 @@ Texture::Texture(const std::string& path, GLenum texType, GLenum slot, GLenum fo
     unsigned char* bytes = stbi_load(path.c_str(), &widthImg, &heightImg, &numColCh, 0);
     
     if (!bytes){
-        std::cerr << "Failed to load texture" << path << std::endl;
-        std::abort();
+        throw std::runtime_error("Failed to load texture: " + path);
     }
 
     glGenTextures(1, &ID);
     glBindTexture(texType, ID);
     
-    glTexParameteri(texType, GL_TEXTURE_MIN_FILTER, GL_NEAREST); // last parameter can be GL_NEAREST or GL_LINEAR. GL_NEAREST result in pixel image, GL_LINEAR result in blur image
-    glTexParameteri(texType, GL_TEXTURE_MAG_FILTER, GL_NEAREST); // last parameter can be GL_NEAREST or GL_LINEAR. GL_NEAREST result in pixel image, GL_LINEAR result in blur image
+    glTexParameteri(texType, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR); // last parameter can be GL_NEAREST or GL_LINEAR. GL_NEAREST result in pixel image, GL_LINEAR result in blur image
+    glTexParameteri(texType, GL_TEXTURE_MAG_FILTER, GL_LINEAR_MIPMAP_LINEAR); // last parameter can be GL_NEAREST or GL_LINEAR. GL_NEAREST result in pixel image, GL_LINEAR result in blur image
     // Axis from x,y,z to s,t,r
     // s,t,r -> GL_TEXTURE_WRAP_S, GL_TEXTURE_WRAP_T, GL_TEXTURE_WRAP_R
     // Options for last param (GL_REPEAT, GL_MIRROR_REPEAT, GL_CAMP_TO_EDGE, GL_CAMP_TO_BORDER)
@@ -37,14 +36,13 @@ Texture::Texture(const std::string& path, GLenum texType, GLenum slot, GLenum fo
     stbi_image_free(bytes);     // free up heap resources
 }
 
-void Texture::texUnit(Shader& shader, const char* uniform, GLuint unit){
-    // Gets the location of the uniform
-	GLuint texUni = glGetUniformLocation(shader.ID, uniform);
+void Texture::texUnit(Shader& shader, const std::string& uniform, GLuint unit){
 	// Shader needs to be activated before changing the value of a uniform
 	shader.Activate();
+    // Gets the location of the uniform
+	GLuint texUni = glGetUniformLocation(shader.ID, uniform.c_str());
 	// Sets the value of the uniform
 	glUniform1i(texUni, unit);
-
 }
 
 Texture::~Texture() noexcept
