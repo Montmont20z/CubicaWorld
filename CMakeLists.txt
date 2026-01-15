@@ -29,6 +29,7 @@ add_executable(cubica
     src/EBO.cpp
     src/stb.cpp
     src/Texture.cpp
+    src/Camera.cpp
 )
 
 target_link_libraries(cubica
