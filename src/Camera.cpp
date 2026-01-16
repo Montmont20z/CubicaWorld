@@ -1,6 +1,5 @@
 #include "Camera.hpp"
 #include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtx/rotate_vector.hpp>
 #include <glm/gtx/vector_angle.hpp>
@@ -13,7 +12,7 @@ Camera::Camera(int width, int height, glm::vec3 position)
 {
 }
 
-void Camera::UpdateMatrix(float FOVdeg, float nearPlane, float farPlane, Shader &shader, const std::string &uniform)
+void Camera::UpdateMatrix(float FOVdeg, float nearPlane, float farPlane)
 {
     if (ScreenHeight == 0) return; // guard
 
@@ -24,11 +23,17 @@ void Camera::UpdateMatrix(float FOVdeg, float nearPlane, float farPlane, Shader 
     float aspect = static_cast<float>(ScreenWidth) / static_cast<float>(ScreenHeight);
     projection = glm::perspective(glm::radians(FOVdeg), aspect, nearPlane, farPlane);
     
-    glUniformMatrix4fv(glGetUniformLocation(shader.ID, uniform.c_str()), 1, GL_FALSE, glm::value_ptr(projection * view));
+    cameraMatrix_ = projection * view;
+}
+
+void Camera::SetUniformMatrix(Shader& shader, const std::string& uniform){
+    glUniformMatrix4fv(glGetUniformLocation(shader.ID, uniform.c_str()), 1, GL_FALSE, glm::value_ptr(cameraMatrix_));
 }
 
 void Camera::ProcessInput(GLFWwindow *window)
 {
+    glm::vec3 right = glm::normalize(glm::cross(Front, Up));
+
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS){
         glfwSetWindowShouldClose(window, true);
     }
@@ -39,10 +44,10 @@ void Camera::ProcessInput(GLFWwindow *window)
        Position -= Front * MoveSpeed;
     }
     if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS){
-       Position -= glm::normalize(glm::cross(Front, Up)) * MoveSpeed;
+       Position -= right * MoveSpeed;
     }
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS){
-       Position += glm::normalize(glm::cross(Front, Up)) * MoveSpeed;
+       Position += right * MoveSpeed;
     }
     if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS){
        Position += Up * MoveSpeed;
@@ -83,18 +88,18 @@ void Camera::ProcessInput(GLFWwindow *window)
         float rotX = MouseSensitivity * static_cast<float>((mouseX - (ScreenWidth / 2)) / ScreenWidth);
         
         // Calculate upcoming vertical change in the Orientation
-        glm::vec3 newFront = glm::rotate(Front, glm::radians(-rotY), glm::normalize(glm::cross(Front, Up)));
+        glm::vec3 newFront = glm::rotate(Front, glm::radians(-rotY), right);
         
         // Decides whether or not the next vertical Orientation is legal or not
 		if (abs(glm::angle(newFront, Up) - glm::radians(90.0f)) <= glm::radians(85.0f))
 		{
-            Front = newFront;
+            Front = glm::normalize(newFront);
         }
 
-        // 
-        Front = glm::rotate(Front, glm::radians(-rotX), Up);
+        // Rotate Front around the Up vector
+        Front = glm::normalize(glm::rotate(Front, glm::radians(-rotX), Up));
         
-        // Sets mouse cursor to the middle of the screen so that it doesn't end up roaming around
+        // Sets mouse cursor to the middle of the screen, enable infinite scrolling 
         glfwSetCursorPos(window, (ScreenWidth / 2), (ScreenHeight / 2));
 	} else {
         glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);

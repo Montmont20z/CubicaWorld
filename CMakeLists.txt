@@ -11,7 +11,7 @@ find_package(glfw3 CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
 
 # GLAD
-add_library(glad STATIC src/glad.c)
+add_library(glad STATIC src/third_party/glad.c)
 target_include_directories(glad PUBLIC ${CMAKE_SOURCE_DIR}/include)
 
 # STB
@@ -22,12 +22,12 @@ add_library(glm INTERFACE)
 target_include_directories(glm INTERFACE ${CMAKE_SOURCE_DIR}/include) 
 
 add_executable(cubica
+    src/third_party/stb.cpp
     src/main.cpp
     src/Shader.cpp
     src/VAO.cpp
     src/VBO.cpp
     src/EBO.cpp
-    src/stb.cpp
     src/Texture.cpp
     src/Camera.cpp
 )

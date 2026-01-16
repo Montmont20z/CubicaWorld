@@ -1,0 +1,74 @@
+classDiagram
+    class C_0014899929896336503560["Shader"]
+    class C_0014899929896336503560 {
+        +Shader(const std::string & vertexFile, const std::string & fragmentFile) void
+        +Shader(const Shader &) void
+        +Shader(Shader && other) void
+        +~Shader() void
+        +operator=(const Shader &) Shader &
+        +operator=(Shader && other) Shader &
+        +Activate() [const] void
+        +ID : GLuint
+    }
+    class C_0006077809002304625189["VBO"]
+    class C_0006077809002304625189 {
+        +VBO(GLfloat * vertices, GLsizeiptr size) void
+        +~VBO() void
+        +Bind() [const] void
+        +Unbind() [const] void
+        +ID : GLuint
+    }
+    class C_0005533647331416267481["VAO"]
+    class C_0005533647331416267481 {
+        +VAO() void
+        +~VAO() void
+        +Bind() [const] void
+        +LinkAttrib(const VBO & VBO, GLuint layout, GLuint numComponent, GLenum type, GLsizeiptr stride, void * offset) [const] void
+        +Unbind() [const] void
+        +ID : GLuint
+    }
+    class C_0004105051469622735371["EBO"]
+    class C_0004105051469622735371 {
+        +EBO(GLuint * indices, GLsizeiptr size) void
+        +~EBO() void
+        +Bind() [const] void
+        +Unbind() [const] void
+        +ID : GLuint
+    }
+    class C_0010942968540697269095["Texture"]
+    class C_0010942968540697269095 {
+        +Texture(const std::string & path, GLenum texType, GLenum slot, GLenum format, GLenum pixelType) void
+        +Texture(const Texture &) void
+        +Texture(Texture && other) void
+        +~Texture() void
+        +operator=(const Texture &) Texture &
+        +operator=(Texture && other) Texture &
+        +Bind(GLuint unit) [const] void
+        +Unbind() [const] void
+        +texUnit(Shader & shader, const std::string & uniform, GLuint unit) void
+        +ID : GLuint
+        -type : GLuint
+    }
+    class C_0005049148943034209802["Camera"]
+    class C_0005049148943034209802 {
+        +Camera(int width, int height, glm::vec3 position) void
+        +ProcessInput(GLFWwindow * window) void
+        +SetUniformMatrix(Shader & shader, const std::string & uniform) void
+        +SetViewportSize(int width, int height) void
+        +UpdateMatrix(float FOVdeg, float nearPlane, float farPlane) void
+        +Front : glm::vec3
+        +MouseSensitivity : float
+        +MoveSpeed : float
+        +Position : glm::vec3
+        +ScreenHeight : int
+        +ScreenWidth : int
+        +Up : glm::vec3
+        -cameraMatrix_ : glm::mat4
+        -isFirstClick_ : bool
+    }
+    C_0005533647331416267481 ..> C_0006077809002304625189 : 
+    C_0010942968540697269095 ..> C_0014899929896336503560 : 
+    C_0005049148943034209802 ..> C_0014899929896336503560 : 
+
+%% Generated with clang-uml, version 0.6.2-25-g5e2993e
+%% LLVM version Debian clang version 19.1.7 (3+b1)

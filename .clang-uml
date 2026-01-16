@@ -1,0 +1,22 @@
+compilation_database_dir: .
+output_directory: diagrams
+
+diagrams:
+  cubica_class:
+    type: class
+    glob:
+      - src/**/*.cpp
+      - include/**/*.hpp
+
+    # put exclude under the diagram so it definitely applies to this diagram
+    exclude:
+      # match any absolute or relative path that contains these fragments
+      paths:
+        - include/glad/*
+        - include/KHR/*
+        - include/stb/*
+        - src/third_party/*
+      namespaces:
+        - std
+        - glm
+        - glfw

@@ -16,7 +16,6 @@
 
 int screenWidth = 800;
 int screenHeight = 800;
-// glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 2.0f);
 
 void frameBufferCallback(GLFWwindow* window, int width, int height){
     glViewport(0,0, width, height);
@@ -143,15 +142,11 @@ int main(){
         }
         
         glm::mat4 model = glm::mat4(1.0f);
-        // glm::mat4 view = glm::mat4(1.0f);
-        // glm::mat4 proj = glm::mat4(1.0f);
-        // model = glm::rotate(model, glm::radians(rotation), glm::vec3(1.0f,0.0f,0.0f)); // perform rotation on the local space
-        // view = glm::translate(view, cameraPos);
-        // proj = glm::perspective(glm::radians(45.0f), static_cast<float>(screenWidth)/static_cast<float>(screenHeight), 0.1f, 100.0f); // Fov, aspect ratio, near field, far field
                                                                                                                     
         int modelLoc = glGetUniformLocation(shader.ID, "model");
         glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
-        camera.UpdateMatrix(45.0f, 0.1f, 100.0f, shader, "camMatrix");
+        camera.UpdateMatrix(45.0f, 0.1f, 100.0f);
+        camera.SetUniformMatrix(shader, "camMatrix");
 
         popCat.Bind(0);
         VAO1.Bind();
