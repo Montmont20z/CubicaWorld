@@ -36,15 +36,6 @@ Texture::Texture(const std::string& path, GLenum texType, GLenum slot, GLenum fo
     stbi_image_free(bytes);     // free up heap resources
 }
 
-void Texture::texUnit(Shader& shader, const std::string& uniform, GLuint unit){
-	// Shader needs to be activated before changing the value of a uniform
-	shader.Activate();
-    // Gets the location of the uniform
-	GLuint texUni = glGetUniformLocation(shader.ID, uniform.c_str());
-	// Sets the value of the uniform
-	glUniform1i(texUni, unit);
-}
-
 Texture::~Texture() noexcept
 {
     if (ID != 0) {

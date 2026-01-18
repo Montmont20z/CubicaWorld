@@ -50,15 +50,6 @@ int main(){
     // remove this after development
     glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GLFW_TRUE);
     
-    // GLfloat vertices[] = {
-    //     //  Position ------// --- Color ---------// ----- Texture
-    //     -0.5f, 0.0f,  0.5f,    1.0f, 0.0f, 0.0f,    0.0f, 0.0f, 
-    //     -0.5f, 0.0f, -0.5f,     0.0f, 1.0f, 0.0f,   1.0f, 0.0f,
-    //     0.5f,  0.0f, -0.5f,     0.0f, 0.0f, 1.0f,    0.0f, 0.0f,
-    //     0.5f,  0.0f,  0.5f,    1.0f, 1.0f, 1.0f,     1.0f, 0.0f,
-    //     0.0f,  0.8f,  0.0f,    1.0f, 1.0f, 1.0f,     0.5f, 1.0f, // pyramid top corner
-    // };
-    
     std::vector<Vertex> vertices = {
         // Position                Normal                  Color                   TexCoords
         {{-0.5f, 0.0f,  0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
@@ -103,28 +94,10 @@ int main(){
     
     Shader shader("shaders/basic.vert.glsl", "shaders/basic.frag.glsl");
     
-    
-    // VAO (Vertex Array Object), VBO (Vertex Buffer Object), EBO (Element Buffer Object) or Index buffer
-    // VAO VAO1;
-    // VBO VBO1(vertices, sizeof(vertices));
-
-    // VAO1.Bind();
-    // VAO1.LinkAttrib(VBO1, 0, 3, GL_FLOAT, 8 * sizeof(float), (void*)0);
-    // VAO1.LinkAttrib(VBO1, 1, 3, GL_FLOAT, 8 * sizeof(float), (void*)(3 * sizeof(float)));
-    // VAO1.LinkAttrib(VBO1, 2, 2, GL_FLOAT, 8 * sizeof(float), (void*)(6 * sizeof(float)));
-    
-    // // create EBO while VAO is bound so VAO stores element array binding
-    // EBO EBO1(vertexIndices, sizeof(vertexIndices));
-    // EBO1.Bind();
-    
-    // // unbind VAO, VBO, EBO
-    // VBO1.Unbind();
-    // VAO1.Unbind();
-    // EBO1.Unbind();
-    
     // Texture
-    auto popCatTexture = std::make_unique<Texture>("assets/pop-cat.jpg", GL_TEXTURE_2D, GL_TEXTURE0, GL_RGB, GL_UNSIGNED_BYTE);
-    popCatTexture->texUnit(shader, "tex0", 0);
+    std::unique_ptr popCatTexture = std::make_unique<Texture>("assets/pop-cat.jpg", GL_TEXTURE_2D, GL_TEXTURE0, GL_RGB, GL_UNSIGNED_BYTE);
+    popCatTexture->Bind(0);
+    shader.AttachTextureUnit(0, "tex0");
     textures.push_back(std::move(popCatTexture));
 
     float rotation = 0.0f;
@@ -159,17 +132,13 @@ int main(){
         }
         
         glm::mat4 model = glm::mat4(1.0f);
-                                                                                                                    
+        model = glm::rotate(model, glm::radians(rotation), glm::vec3(1.0f,0.0f,0.0f));
+ 
         int modelLoc = glGetUniformLocation(shader.ID, "model");
         glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
         camera.UpdateMatrix(45.0f, 0.1f, 100.0f);
         camera.SetUniformMatrix(shader, "camMatrix");
-
-        // popCatTexture->Bind(0);
-        // VAO1.Bind();
-        
-        // glDrawArrays(GL_TRIANGLES, 0, 3); // draw triangle
-        // glDrawElements(GL_TRIANGLES, sizeof(vertexIndices)/sizeof(int), GL_UNSIGNED_INT, (void*)0); 
+ 
         mesh.Draw(shader, camera);
 
         // swap buffers

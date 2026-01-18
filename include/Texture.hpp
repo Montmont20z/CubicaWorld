@@ -9,7 +9,6 @@ private:
 public:
     GLuint ID{0};
     Texture(const std::string& path, GLenum texType, GLenum slot, GLenum format, GLenum pixelType );
-    void texUnit(Shader &shader, const std::string &uniform, GLuint unit);
     ~Texture() noexcept;
 
     // non copyable

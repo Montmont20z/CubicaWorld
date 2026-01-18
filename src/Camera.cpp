@@ -55,16 +55,17 @@ void Camera::ProcessInput(GLFWwindow *window)
     if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS){
        Position -= Up * MoveSpeed;
     }
-    if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS){
-       Position += Up * MoveSpeed;
-    }
-    if (glfwGetKey(window, GLFW_KEY_Z) == GLFW_PRESS)
+    // if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS){
+    // //    Position += Up * MoveSpeed;
+	// 	MoveSpeed = 0.2f;
+    // }
+    if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
 	{
-		MoveSpeed = 0.4f;
+		MoveSpeed = 0.2f;
 	}
-	else if (glfwGetKey(window, GLFW_KEY_Z) == GLFW_RELEASE)
+	else if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_RELEASE)
 	{
-		MoveSpeed = 0.1f;
+		MoveSpeed = 0.05f;
 	}
     
     // handle mouse movement

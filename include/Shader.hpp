@@ -1,6 +1,7 @@
 #pragma once
 #include <glad/glad.h>
 #include <string>
+#include <Texture.hpp>
 
 std::string get_file_content(const char* filename);
 
@@ -32,9 +33,7 @@ public:
     */
     
     void Activate() const noexcept;
-    // void Delete();
-    
-
+    void AttachTextureUnit(const GLuint textureID, const std::string &uniform);
 };
 
 

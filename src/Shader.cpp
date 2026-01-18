@@ -137,3 +137,14 @@ void Shader::Activate() const noexcept
     if (ID != 0)
         glUseProgram(ID);
 }
+
+void Shader::AttachTextureUnit(const GLuint textureUnit, const std::string& uniform)
+{
+	// Shader needs to be activated before changing the value of a uniform
+	Activate();
+    // Gets the location of the uniform
+	GLuint loc = glGetUniformLocation(ID, uniform.c_str());
+	// Sets the value of the uniform
+	if(loc >= 0) glUniform1i(loc, textureUnit);
+}
+
