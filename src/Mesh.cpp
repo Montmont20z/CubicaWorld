@@ -2,7 +2,7 @@
 
 Mesh::Mesh(const std::vector<Vertex> &vertices, 
            const std::vector<GLuint> &indices, 
-           std::vector<std::unique_ptr<Texture>>&& textures,  // pass rvalue 
+           std::vector<std::unique_ptr<Texture>>&& textures = {},  // pass rvalue 
            GLenum usage = GL_STATIC_DRAW
           )
     : vertices_(vertices)
@@ -34,6 +34,31 @@ Mesh::Mesh(const std::vector<Vertex> &vertices,
 Mesh::~Mesh() noexcept
 {
 }
+
+// Mesh::Mesh(Mesh &&other) noexcept
+//     : vao_(std::move(other.vao_)),
+//   vbo_(std::move(other.vbo_)),
+//   ebo_(std::move(other.ebo_)),
+//   vertices_(std::move(other.vertices_)),
+//   indices_(std::move(other.indices_)),
+//   textures_(std::move(other.textures_))
+// {
+//     // other is left in valid but empty state by member moves
+// }
+
+/* Mesh &Mesh::operator=(Mesh &&other) noexcept
+{
+    if (this == &other) return *this; // prevent self assignment
+                                      // 
+    // Use member move-assign (VAO/VBO/EBO should be moveable via their own move ctors/assigns)
+    vao_ = std::move(other.vao_);
+    vbo_ = std::move(other.vbo_);
+    ebo_ = std::move(other.ebo_);
+    vertices_ = std::move(other.vertices_);
+    indices_ = std::move(other.indices_);
+    textures_ = std::move(other.textures_);
+    return *this;
+} */
 
 void Mesh::Draw(const Shader &shader, const Camera &camare) const
 {

@@ -52,9 +52,9 @@ int main(){
     
     std::vector<Vertex> vertices = {
         // Position                Normal                  Color                   TexCoords
-        {{-0.5f, 0.0f,  0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
-        {{-0.5f, 0.0f, -0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
-        {{ 0.5f, 0.0f, -0.5f}, {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f}},
+        {{-0.5f, 0.0f,  0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f}},
+        {{-0.5f, 0.0f, -0.5f}, {0.0f, 1.0f, 0.0f}, {1.0f, 1.0f, 1.0f}, {1.0f, 0.0f}},
+        {{ 0.5f, 0.0f, -0.5f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f}},
         {{ 0.5f, 0.0f,  0.5f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f, 1.0f}, {1.0f, 0.0f}},
         {{ 0.0f, 0.8f,  0.0f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f, 1.0f}, {0.5f, 1.0f}},
     };
@@ -69,8 +69,36 @@ int main(){
         3,0,4,
     };
     
+    std::vector<Vertex> lightVertices = {
+        // Position              Normal (unused)       Color (unused)        TexCoord (unused)
+        {{-0.1f, -0.1f,  0.1f}, {0.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f}},
+        {{-0.1f, -0.1f, -0.1f}, {0.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f}},
+        {{ 0.1f, -0.1f, -0.1f}, {0.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f}},
+        {{ 0.1f, -0.1f,  0.1f}, {0.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f}},
+        {{-0.1f,  0.1f,  0.1f}, {0.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f}},
+        {{-0.1f,  0.1f, -0.1f}, {0.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f}},
+        {{ 0.1f,  0.1f, -0.1f}, {0.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f}},
+        {{ 0.1f,  0.1f,  0.1f}, {0.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f}},
+    };
+    
+    std::vector<GLuint> lightIndices = {
+        0, 1, 2,
+        0, 2, 3,
+        0, 4, 7,
+        3, 7, 6,
+        3, 6, 2,
+        2, 6, 5,
+        2, 5, 1,
+        1, 5, 4,
+        1, 4, 0,
+        4, 5, 6,
+        4, 6, 7,
+    };
+    
     // create texture array
     std::vector<std::unique_ptr<Texture>> textures;
+    std::vector<std::unique_ptr<Texture>> emptyTextures; // No textures for light
+
 
     // create the window
     GLFWwindow* window = glfwCreateWindow(screenWidth, screenHeight, "Cubica World", nullptr, nullptr);
@@ -93,7 +121,16 @@ int main(){
     glViewport(0,0, screenWidth, screenHeight); // Maps normalized device coordinates (NDC, range [-1,1]) to window pixels. // need to change Screen width & height if resize window
     
     Shader shader("shaders/basic.vert.glsl", "shaders/basic.frag.glsl");
+    Shader lightShader("shaders/light.vert.glsl", "shaders/light.frag.glsl");
     
+
+    // VAO lightVAO;
+    
+    glm::vec4 lightColor = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
+    glm::vec3 lightPos = glm::vec3(2.5f, 2.5f, 2.5f);
+    glm::mat4 lightModel = glm::mat4(1.0f);
+    lightModel = glm::translate(lightModel, lightPos);
+
     // Texture
     std::unique_ptr popCatTexture = std::make_unique<Texture>("assets/pop-cat.jpg", GL_TEXTURE_2D, GL_TEXTURE0, GL_RGB, GL_UNSIGNED_BYTE);
     popCatTexture->Bind(0);
@@ -109,6 +146,7 @@ int main(){
     glfwSetFramebufferSizeCallback(window, frameBufferCallback);
     
     Mesh mesh(vertices, vertexIndices, std::move(textures), GL_STATIC_DRAW);
+    Mesh lightMesh(lightVertices, lightIndices, std::move(emptyTextures), GL_STATIC_DRAW);
 
     glEnable(GL_DEPTH_TEST);
 
@@ -123,7 +161,6 @@ int main(){
         // render
         glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        shader.Activate();
         
         float currentTime = glfwGetTime();
         if (currentTime - prevTime >= 1/60){
@@ -134,12 +171,25 @@ int main(){
         glm::mat4 model = glm::mat4(1.0f);
         model = glm::rotate(model, glm::radians(rotation), glm::vec3(1.0f,0.0f,0.0f));
  
+
+ 
+        shader.Activate();
+        shader.SetVec3("lightPos", lightPos);
+        shader.SetVec4("lightColor", lightColor);
+        shader.SetVec3("camPos", camera.Position);
         int modelLoc = glGetUniformLocation(shader.ID, "model");
         glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
         camera.UpdateMatrix(45.0f, 0.1f, 100.0f);
         camera.SetUniformMatrix(shader, "camMatrix");
- 
+
         mesh.Draw(shader, camera);
+        
+        lightShader.Activate();
+        lightShader.SetMat4("model", lightModel);
+        lightShader.SetVec4("lightColor", lightColor);
+        camera.SetUniformMatrix(lightShader, "camMatrix");
+        lightMesh.Draw(lightShader, camera);
+
 
         // swap buffers
         glfwSwapBuffers(window);
