@@ -149,6 +149,7 @@ int main(){
     Mesh lightMesh(lightVertices, lightIndices, std::move(emptyTextures), GL_STATIC_DRAW);
 
     glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LESS);
 
     // main game loop
     while(!glfwWindowShouldClose(window)){

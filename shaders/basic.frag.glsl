@@ -45,7 +45,7 @@ vec4 directionalLight(){
     
     // diffuse light
     vec3 n = normalize(normal);
-    vec3 lightDirection = normalize(vec3(-1.0f, 0.0f, 0.0f));
+    vec3 lightDirection = normalize(vec3(0.0f, 1.0f, 0.0f));
     float diffuse = max(dot(n, lightDirection), 0.0f); //  min is 0.0f
 
     // specular light
@@ -55,7 +55,7 @@ vec4 directionalLight(){
     float specAmount = pow(max(dot(viewDirection, reflectionDirection), 0.0f), 8); // pow() shininess exponent. Higher: shaper highlight (eg metal)
     float specular = specAmount * specularLight;
 
-    return texture(tex0, texCoord) * lightColor * (diffuse + ambient + specular );
+    return texture(tex0, texCoord) *  (diffuse + ambient + specular ) * lightColor;
 }
 
 vec4 spotLight(){
@@ -83,10 +83,28 @@ vec4 spotLight(){
     return texture(tex0, texCoord) * lightColor * (diffuse*intensity + ambient + specular*intensity );
 }
 
+float near = 0.1f;
+float far = 100.0f;
+
+float linearizeDepth(float depth){
+    return (2.0 * near * far) / (far + near - (depth * 2.0 - 1.0) * (far - near));
+}
+
+float logisticDepth(float depth, float steepness, float offset)
+{
+	float zVal = linearizeDepth(depth);
+	return (1 / (1 + exp(-steepness * (zVal - offset))));
+}
+
 
 void main()
 {
-    FragColor = spotLight();
+    // FragColor = spotLight();
     // FragColor =  vec4(color, 1.0) * lightColor * (diffuse + ambient + specular);
+    // FragColor = vec4(vec3(linearizeDepth(gl_FragCoord.z) / far), 1.0f);
+    float depth = logisticDepth(gl_FragCoord.z, 0.5f, 5.0f);
+    FragColor = directionalLight() * (1.0f - depth) + vec4(depth * vec3(0.85f, 0.85f, 0.90f), 1.0f);
+    // float zVal = linearizeDepth(gl_FragCoord.z);
+    // FragColor = vec4(vec3(zVal / far), 1.0); // white = far, black = near
 
 }
