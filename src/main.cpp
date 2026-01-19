@@ -52,11 +52,11 @@ int main(){
     
     std::vector<Vertex> vertices = {
         // Position                Normal                  Color                   TexCoords
-        {{-0.5f, 0.0f,  0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f}},
-        {{-0.5f, 0.0f, -0.5f}, {0.0f, 1.0f, 0.0f}, {1.0f, 1.0f, 1.0f}, {1.0f, 0.0f}},
-        {{ 0.5f, 0.0f, -0.5f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f}},
-        {{ 0.5f, 0.0f,  0.5f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f, 1.0f}, {1.0f, 0.0f}},
-        {{ 0.0f, 0.8f,  0.0f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f, 1.0f}, {0.5f, 1.0f}},
+        {{-0.5f, 0.0f,  0.5f}, {-0.7f, 0.0f, 0.7f}, {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f}},
+        {{-0.5f, 0.0f, -0.5f}, {-0.7f, 0.0f, -0.7f}, {1.0f, 1.0f, 1.0f}, {1.0f, 0.0f}},
+        {{ 0.5f, 0.0f, -0.5f}, {0.7f, 0.0f, -0.7f}, {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f}},
+        {{ 0.5f, 0.0f,  0.5f}, {0.70f, 0.0f, 0.70f}, {1.0f, 1.0f, 1.0f}, {1.0f, 0.0f}},
+        {{ 0.0f, 0.8f,  0.0f}, {0.0f, 1.0f, 0.0f}, {1.0f, 1.0f, 1.0f}, {0.5f, 1.0f}},
     };
 
     // unsigned int vertexIndices[] = {
@@ -127,7 +127,7 @@ int main(){
     // VAO lightVAO;
     
     glm::vec4 lightColor = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
-    glm::vec3 lightPos = glm::vec3(2.5f, 2.5f, 2.5f);
+    glm::vec3 lightPos = glm::vec3(1.5f, 0.5f, 0.0f);
     glm::mat4 lightModel = glm::mat4(1.0f);
     lightModel = glm::translate(lightModel, lightPos);
 
@@ -169,7 +169,7 @@ int main(){
         }
         
         glm::mat4 model = glm::mat4(1.0f);
-        model = glm::rotate(model, glm::radians(rotation), glm::vec3(1.0f,0.0f,0.0f));
+        // model = glm::rotate(model, glm::radians(rotation), glm::vec3(1.0f,0.0f,0.0f));
  
 
  

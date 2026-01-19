@@ -61,11 +61,11 @@ void Camera::ProcessInput(GLFWwindow *window)
     // }
     if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
 	{
-		MoveSpeed = 0.2f;
+		MoveSpeed = 0.1f;
 	}
 	else if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_RELEASE)
 	{
-		MoveSpeed = 0.05f;
+		MoveSpeed = 0.02f;
 	}
     
     // handle mouse movement
