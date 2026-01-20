@@ -86,11 +86,13 @@ vec4 spotLight(){
 float near = 0.1f;
 float far = 100.0f;
 
+// convert non-linear depth value to linear depth value 
 float linearizeDepth(float depth){
     return (2.0 * near * far) / (far + near - (depth * 2.0 - 1.0) * (far - near));
 }
 
-float logisticDepth(float depth, float steepness, float offset)
+// apply smooth fall off curve // S curve
+float logisticDepth(float depth, float steepness, float offset) // offset = fog start become noticeable from this unit from camera // steepness control how gratually fog transition (lower = more gradual)
 {
 	float zVal = linearizeDepth(depth);
 	return (1 / (1 + exp(-steepness * (zVal - offset))));
