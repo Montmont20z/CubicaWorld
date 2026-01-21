@@ -7,9 +7,32 @@ VAO::VAO()
 
 VAO::~VAO() noexcept
 {
-    glDeleteVertexArrays(1, &ID);
+    if (this->ID != 0){
+        glDeleteVertexArrays(1, &ID);
+    }
 }
 
+VAO::VAO(VAO &&other) noexcept
+    : ID(other.ID)
+{
+    other.ID = 0;
+}
+
+VAO &VAO::operator=(VAO &&other) noexcept
+{
+    if (this != &other)
+    {
+        if (this->ID != 0){
+            glDeleteVertexArrays(1, &ID);
+        }
+        // steal other properties
+        this->ID = other.ID;
+        
+        // clean other 
+        other.ID = 0;
+    }
+    return *this;
+}
 
 void VAO::LinkAttrib(const VBO &VBO, GLuint layout, GLuint numComponent, GLenum type, GLsizeiptr stride, void *offset) const
 {

@@ -5,8 +5,6 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-std::string get_file_content(const char* filename);
-
 class Shader
 {
 private:

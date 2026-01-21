@@ -4,7 +4,9 @@
 
 class EBO {
 public:
-    GLuint ID;
+    GLuint ID{0};
+    GLsizei Count{0};
+
     explicit EBO(const std::vector<GLuint> &indices, GLenum usage);
     ~EBO() noexcept;
     

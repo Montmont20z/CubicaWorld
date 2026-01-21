@@ -45,7 +45,7 @@ vec4 directionalLight(){
     
     // diffuse light
     vec3 n = normalize(normal);
-    vec3 lightDirection = normalize(vec3(0.0f, 1.0f, 0.0f));
+    vec3 lightDirection = normalize(vec3(0.4f, 1.0f, 0.0f));
     float diffuse = max(dot(n, lightDirection), 0.0f); //  min is 0.0f
 
     // specular light

@@ -3,21 +3,21 @@
 #include <sstream>
 #include <iostream>
 
-using namespace std;
+// using namespace std;
 
-std::string get_file_content(const std::string& filename)
+static std::string get_file_content(const std::string& filename)
 {
     std::ifstream in(filename, std::ios::binary); // open the file for input, read byte as-is (no conversion) (no new line conversion (\r\n -> \n))
     if(!in){ // check if file is successfully opened
-        throw std::runtime_error("Failed to open file: " + filename);
+        throw std::runtime_error("Shader: Failed to open file: " + filename);
     }
-    std::string contents;
     in.seekg(0, std::ios::end); // move the file cursor to end of the file
 
     auto size = in.tellg(); // return the current cursor position (get file size in byte).
     if (size <= 0){
-        throw std::runtime_error("Shader file: " + filename + " is empty or unreadable");
+        throw std::runtime_error("Shader: Shader file: " + filename + " is empty or unreadable");
     } 
+    std::string contents;
     contents.resize(static_cast<size_t>(size)); // .resize() allocate exactly enough memory to hold the file's content
 
     in.seekg(0, std::ios::beg); // move cursor back to start of file
@@ -28,7 +28,7 @@ std::string get_file_content(const std::string& filename)
 }
 
 // Compile shader and print errors if any
-bool isCompileErrors(GLuint shader){
+static bool check_shader_compile(GLuint shader){
     GLint success = 0;
     glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
     if (!success) {
@@ -36,14 +36,14 @@ bool isCompileErrors(GLuint shader){
         glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &logLen);
         std::string log(logLen, ' ');
         glGetShaderInfoLog(shader, logLen, nullptr, &log[0]);
-        std::cerr << "Shader compile error:\n" << log << std::endl;
+        std::cerr << "Shader: Shader compile error:\n" << log << std::endl;
         return false;
     }
     return true;
 };
 
 // Link program and print errors if any
-bool isLinkErrors(GLuint prog){
+static bool check_program_link(GLuint prog){
     GLint success = 0;
     glGetProgramiv(prog, GL_LINK_STATUS, &success);
     if (!success) {
@@ -51,16 +51,17 @@ bool isLinkErrors(GLuint prog){
         glGetProgramiv(prog, GL_INFO_LOG_LENGTH, &logLen);
         std::string log(logLen, ' ');
         glGetProgramInfoLog(prog, logLen, nullptr, &log[0]);
-        std::cerr << "Program link error:\n" << log << std::endl;
+        std::cerr << "Shader: Program link error:\n" << log << std::endl;
         return false;
     }
     return true;
 };  
+
 Shader::Shader(const std::string& vertexFile, const std::string& fragmentFile)
 // Shader::Shader(const char *vertexFile, const char *fragmentFile)
 {
-    string vertexCode = get_file_content(vertexFile);
-    string fragmentCode = get_file_content(fragmentFile);
+    std::string vertexCode = get_file_content(vertexFile);
+    std::string fragmentCode = get_file_content(fragmentFile);
     
     const char* vertexSource = vertexCode.c_str();
     const char* fragmentSource = fragmentCode.c_str();
@@ -69,17 +70,18 @@ Shader::Shader(const std::string& vertexFile, const std::string& fragmentFile)
     GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER); // Allocates a new shader object of type vertex and returns its handle.
     glShaderSource(vertexShader, 1, &vertexSource, nullptr); // Uploads the GLSL source string(s) into the shader object.
     glCompileShader(vertexShader); // Compiles the shader source into GPU-executable code.
-    if (!isCompileErrors(vertexShader)) { 
+    if (!check_shader_compile(vertexShader)) { 
         glDeleteShader(vertexShader);
-        throw std::runtime_error("Failed to complied vertex shader");
+        throw std::runtime_error("Shader: Failed to complied vertex shader");
     }
     
     GLuint fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
     glShaderSource(fragmentShader, 1, &fragmentSource, nullptr);
     glCompileShader(fragmentShader);
-    if (!isCompileErrors(fragmentShader)) { 
+    if (!check_shader_compile(fragmentShader)) { 
+        glDeleteShader(vertexShader);
         glDeleteShader(fragmentShader);
-        throw std::runtime_error("Failed to complied fragment Shader");
+        throw std::runtime_error("Shader: Failed to complied fragment Shader");
     }
 
     // Program creation, attach, link
@@ -88,9 +90,11 @@ Shader::Shader(const std::string& vertexFile, const std::string& fragmentFile)
     glAttachShader(ID, vertexShader);
     glAttachShader(ID, fragmentShader);
     glLinkProgram(ID); // resolves attribute locations, varyings, types and builds a final GPU pipeline object you can use with glUseProgram
-    if (!isLinkErrors(ID)) {
+    if (!check_program_link(ID)) {
+        glDeleteShader(vertexShader);
+        glDeleteShader(fragmentShader);
         glDeleteProgram(ID);
-        throw std::runtime_error("Failed to link shader");
+        throw std::runtime_error("Shader: Failed to link shader");
     }   
     
     // clean up shader
@@ -113,7 +117,8 @@ Shader::~Shader() noexcept
 Shader a("a.vert", "b.frag");
 Shader b = std::move(a);
 */
-Shader::Shader(Shader &&other) noexcept : ID(other.ID)
+Shader::Shader(Shader &&other) noexcept 
+    : ID(other.ID)
 {
     other.ID = 0;
 }
@@ -122,11 +127,11 @@ Shader &Shader::operator=(Shader &&other) noexcept
 {
     if (this != &other){ // Protects against self-move Eg. a = std::move(a);
         // Release current resource (mirror a destructor)
-        if (ID != 0){
+        if (this->ID != 0){
             glDeleteProgram(ID);
         }
         // Move
-        ID = other.ID;
+        this->ID = other.ID;
         other.ID = 0;
     }
     return *this;
@@ -143,8 +148,9 @@ void Shader::AttachTextureUnit(const GLuint textureUnit, const std::string& unif
 	// Shader needs to be activated before changing the value of a uniform
 	Activate();
     // Gets the location of the uniform
-	GLuint loc = glGetUniformLocation(ID, uniform.c_str());
+    // use signed GLint for uniform location and check against -1
+	GLint loc = glGetUniformLocation(static_cast<GLint>(ID), uniform.c_str());
 	// Sets the value of the uniform
-	if(loc >= 0) glUniform1i(loc, textureUnit);
+	if(loc != -1) glUniform1i(loc, static_cast<GLuint>(textureUnit));
 }
 
