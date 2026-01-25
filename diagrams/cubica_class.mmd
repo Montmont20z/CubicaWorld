@@ -37,15 +37,25 @@ classDiagram
     class C_0006077809002304625189["VBO"]
     class C_0006077809002304625189 {
         +VBO(const std::vector&lt;Vertex&gt; & vertices, GLenum usage) void
+        +VBO(const VBO &) void
+        +VBO(VBO && other) void
         +~VBO() void
+        +operator=(const VBO &) VBO &
+        +operator=(VBO && other) VBO &
         +Bind() [const] void
         +Unbind() [const] void
         +ID : GLuint
+        -byteSize_ : std::size_t
+        -usage_ : GLenum
     }
     class C_0005533647331416267481["VAO"]
     class C_0005533647331416267481 {
         +VAO() void
+        +VAO(const VAO &) void
+        +VAO(VAO && other) void
         +~VAO() void
+        +operator=(const VAO &) VAO &
+        +operator=(VAO && other) VAO &
         +Bind() [const] void
         +LinkAttrib(const VBO & VBO, GLuint layout, GLuint numComponent, GLenum type, GLsizeiptr stride, void * offset) [const] void
         +Unbind() [const] void
@@ -61,6 +71,7 @@ classDiagram
         +operator=(EBO && other) EBO &
         +Bind() [const] void
         +Unbind() [const] void
+        +Count : GLsizei
         +ID : GLuint
     }
     class C_0005049148943034209802["Camera"]

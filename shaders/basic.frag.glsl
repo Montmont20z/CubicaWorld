@@ -41,7 +41,7 @@ vec4 pointLight(){
 vec4 directionalLight(){
 
    // ambient light
-    float ambient = 0.04f;
+    float ambient = 0.24f;
     
     // diffuse light
     vec3 n = normalize(normal);

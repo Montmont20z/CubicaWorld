@@ -58,7 +58,6 @@ static bool check_program_link(GLuint prog){
 };  
 
 Shader::Shader(const std::string& vertexFile, const std::string& fragmentFile)
-// Shader::Shader(const char *vertexFile, const char *fragmentFile)
 {
     std::string vertexCode = get_file_content(vertexFile);
     std::string fragmentCode = get_file_content(fragmentFile);
@@ -143,7 +142,7 @@ void Shader::Activate() const noexcept
         glUseProgram(ID);
 }
 
-void Shader::AttachTextureUnit(const GLuint textureUnit, const std::string& uniform)
+void Shader::AttachTextureUnit(const GLuint textureUnit, const std::string& uniform) const
 {
 	// Shader needs to be activated before changing the value of a uniform
 	Activate();

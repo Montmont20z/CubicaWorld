@@ -35,18 +35,18 @@ Mesh::~Mesh() noexcept
 {
 }
 
-// Mesh::Mesh(Mesh &&other) noexcept
-//     : vao_(std::move(other.vao_)),
-//   vbo_(std::move(other.vbo_)),
-//   ebo_(std::move(other.ebo_)),
-//   vertices_(std::move(other.vertices_)),
-//   indices_(std::move(other.indices_)),
-//   textures_(std::move(other.textures_))
-// {
-//     // other is left in valid but empty state by member moves
-// }
+Mesh::Mesh(Mesh &&other) noexcept
+    : vao_(std::move(other.vao_)),
+  vbo_(std::move(other.vbo_)),
+  ebo_(std::move(other.ebo_)),
+  vertices_(std::move(other.vertices_)),
+  indices_(std::move(other.indices_)),
+  textures_(std::move(other.textures_))
+{
+    // other is left in valid but empty state by member moves
+}
 
-/* Mesh &Mesh::operator=(Mesh &&other) noexcept
+Mesh &Mesh::operator=(Mesh &&other) noexcept
 {
     if (this == &other) return *this; // prevent self assignment
                                       // 
@@ -58,7 +58,7 @@ Mesh::~Mesh() noexcept
     indices_ = std::move(other.indices_);
     textures_ = std::move(other.textures_);
     return *this;
-} */
+}
 
 void Mesh::Draw(const Shader &shader, const Camera &camare) const
 {
@@ -71,4 +71,9 @@ void Mesh::Draw(const Shader &shader, const Camera &camare) const
      
     // draw the mesh
     glDrawElements(GL_TRIANGLES, indices_.size(), GL_UNSIGNED_INT, (void*)0); 
+}
+
+GLuint Mesh::IndexCount() const
+{
+    return indices_.size();
 }

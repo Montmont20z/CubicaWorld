@@ -31,6 +31,7 @@ add_executable(cubica
     src/Texture.cpp
     src/Camera.cpp
     src/Mesh.cpp
+    src/Chunk.cpp
 )
 
 target_link_libraries(cubica

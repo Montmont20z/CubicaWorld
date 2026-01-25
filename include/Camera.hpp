@@ -27,7 +27,7 @@ public:
     Camera(int width, int height, glm::vec3 position);
 
     void UpdateMatrix(float FOVdeg, float nearPlane, float farPlane);
-    void SetUniformMatrix(Shader &shader, const std::string &uniform);
+    void SetUniformMatrix(const Shader &shader, const std::string &uniform) const;
     void ProcessInput(GLFWwindow *window);
 
     void SetViewportSize(int width, int height);

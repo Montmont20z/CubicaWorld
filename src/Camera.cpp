@@ -26,7 +26,8 @@ void Camera::UpdateMatrix(float FOVdeg, float nearPlane, float farPlane)
     cameraMatrix_ = projection * view;
 }
 
-void Camera::SetUniformMatrix(Shader& shader, const std::string& uniform){
+void Camera::SetUniformMatrix(const Shader& shader, const std::string& uniform) const
+{
     glUniformMatrix4fv(glGetUniformLocation(shader.ID, uniform.c_str()), 1, GL_FALSE, glm::value_ptr(cameraMatrix_));
 }
 

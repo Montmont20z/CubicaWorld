@@ -27,7 +27,7 @@ public:
     void Draw(const Shader &shader, const Camera &camare) const;
     void SetTexture(const Texture& texture);
     
-    
+    GLuint IndexCount() const;
 
 private:
     VAO vao_;

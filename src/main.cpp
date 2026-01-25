@@ -15,6 +15,7 @@
 #include "Texture.hpp"
 #include "Camera.hpp"
 #include "Mesh.hpp"
+#include "Chunk.hpp"
 
 int screenWidth = 800;
 int screenHeight = 800;
@@ -49,25 +50,61 @@ int main(){
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE); // do not use deprecated functions (eg glBegin, glEnd)
     // remove this after development
     glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GLFW_TRUE);
-    
+
     std::vector<Vertex> vertices = {
         // Position                Normal                  Color                   TexCoords
-        {{-0.5f, 0.0f,  0.5f}, {-0.7f, 0.0f, 0.7f}, {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f}},
-        {{-0.5f, 0.0f, -0.5f}, {-0.7f, 0.0f, -0.7f}, {1.0f, 1.0f, 1.0f}, {1.0f, 0.0f}},
-        {{ 0.5f, 0.0f, -0.5f}, {0.7f, 0.0f, -0.7f}, {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f}},
-        {{ 0.5f, 0.0f,  0.5f}, {0.70f, 0.0f, 0.70f}, {1.0f, 1.0f, 1.0f}, {1.0f, 0.0f}},
-        {{ 0.0f, 0.8f,  0.0f}, {0.0f, 1.0f, 0.0f}, {1.0f, 1.0f, 1.0f}, {0.5f, 1.0f}},
+        // Bottom (y = 0) - outward normal (0,-1,0)
+        {{-0.5f, 0.0f,  0.5f}, { 0.0f,-1.0f, 0.0f}, {1.0f,1.0f,1.0f}, {0.0f,0.0f}}, // 0
+        {{-0.5f, 0.0f, -0.5f}, { 0.0f,-1.0f, 0.0f}, {1.0f,1.0f,1.0f}, {1.0f,0.0f}}, // 1
+        {{ 0.5f, 0.0f, -0.5f}, { 0.0f,-1.0f, 0.0f}, {1.0f,1.0f,1.0f}, {1.0f,1.0f}}, // 2
+        {{ 0.5f, 0.0f,  0.5f}, { 0.0f,-1.0f, 0.0f}, {1.0f,1.0f,1.0f}, {0.0f,1.0f}}, // 3
+
+        // Top (y = 1) - outward normal (0,1,0)
+        {{ 0.5f, 1.0f,  0.5f}, { 0.0f, 1.0f, 0.0f}, {1.0f,1.0f,1.0f}, {0.0f,0.0f}}, // 4
+        {{ 0.5f, 1.0f, -0.5f}, { 0.0f, 1.0f, 0.0f}, {1.0f,1.0f,1.0f}, {1.0f,0.0f}}, // 5
+        {{-0.5f, 1.0f, -0.5f}, { 0.0f, 1.0f, 0.0f}, {1.0f,1.0f,1.0f}, {1.0f,1.0f}}, // 6
+        {{-0.5f, 1.0f,  0.5f}, { 0.0f, 1.0f, 0.0f}, {1.0f,1.0f,1.0f}, {0.0f,1.0f}}, // 7
+
+        // Left (x = -0.5) - outward normal (-1,0,0)
+        {{-0.5f, 0.0f,  0.5f}, {-1.0f, 0.0f, 0.0f}, {1.0f,1.0f,1.0f}, {0.0f,0.0f}}, // 8
+        {{-0.5f, 0.0f, -0.5f}, {-1.0f, 0.0f, 0.0f}, {1.0f,1.0f,1.0f}, {1.0f,0.0f}}, // 9
+        {{-0.5f, 1.0f, -0.5f}, {-1.0f, 0.0f, 0.0f}, {1.0f,1.0f,1.0f}, {1.0f,1.0f}}, //10
+        {{-0.5f, 1.0f,  0.5f}, {-1.0f, 0.0f, 0.0f}, {1.0f,1.0f,1.0f}, {0.0f,1.0f}}, //11
+
+        // Right (x = +0.5) - outward normal (1,0,0)
+        {{ 0.5f, 0.0f, -0.5f}, { 1.0f, 0.0f, 0.0f}, {1.0f,1.0f,1.0f}, {0.0f,0.0f}}, //12
+        {{ 0.5f, 0.0f,  0.5f}, { 1.0f, 0.0f, 0.0f}, {1.0f,1.0f,1.0f}, {1.0f,0.0f}}, //13
+        {{ 0.5f, 1.0f,  0.5f}, { 1.0f, 0.0f, 0.0f}, {1.0f,1.0f,1.0f}, {1.0f,1.0f}}, //14
+        {{ 0.5f, 1.0f, -0.5f}, { 1.0f, 0.0f, 0.0f}, {1.0f,1.0f,1.0f}, {0.0f,1.0f}}, //15
+
+        // Front (z = +0.5) - outward normal (0,0,1)
+        {{-0.5f, 0.0f,  0.5f}, { 0.0f, 0.0f, 1.0f}, {1.0f,1.0f,1.0f}, {0.0f,0.0f}}, //16
+        {{ 0.5f, 0.0f,  0.5f}, { 0.0f, 0.0f, 1.0f}, {1.0f,1.0f,1.0f}, {1.0f,0.0f}}, //17
+        {{ 0.5f, 1.0f,  0.5f}, { 0.0f, 0.0f, 1.0f}, {1.0f,1.0f,1.0f}, {1.0f,1.0f}}, //18
+        {{-0.5f, 1.0f,  0.5f}, { 0.0f, 0.0f, 1.0f}, {1.0f,1.0f,1.0f}, {0.0f,1.0f}}, //19
+
+        // Back (z = -0.5) - outward normal (0,0,-1)
+        {{-0.5f, 0.0f, -0.5f}, { 0.0f, 0.0f,-1.0f}, {1.0f,1.0f,1.0f}, {0.0f,0.0f}}, //20
+        {{ 0.5f, 0.0f, -0.5f}, { 0.0f, 0.0f,-1.0f}, {1.0f,1.0f,1.0f}, {1.0f,0.0f}}, //21
+        {{ 0.5f, 1.0f, -0.5f}, { 0.0f, 0.0f,-1.0f}, {1.0f,1.0f,1.0f}, {1.0f,1.0f}}, //22
+        {{-0.5f, 1.0f, -0.5f}, { 0.0f, 0.0f,-1.0f}, {1.0f,1.0f,1.0f}, {0.0f,1.0f}}, //23
     };
 
-    // unsigned int vertexIndices[] = {
     std::vector<GLuint> vertexIndices = {
-        0,1,2, // bottom 1
-        2,3,0, // bottom 2
-        0,1,4,
-        1,2,4,
-        2,3,4,
-        3,0,4,
+        // Bottom
+        0,1,2,  2,3,0,
+        // Left
+        8,9,10, 8,10,11,
+        // Right
+        12,13,14, 15,12,14,
+        // Top
+        4,5,6, 4,7,6,
+        // Front
+        16,17,18, 16,18,19,
+        // Back
+        20,21,22, 20,22,23
     };
+
     
     std::vector<Vertex> lightVertices = {
         // Position              Normal (unused)       Color (unused)        TexCoord (unused)
@@ -99,7 +136,6 @@ int main(){
     std::vector<std::unique_ptr<Texture>> textures;
     std::vector<std::unique_ptr<Texture>> emptyTextures; // No textures for light
 
-
     // create the window
     GLFWwindow* window = glfwCreateWindow(screenWidth, screenHeight, "Cubica World", nullptr, nullptr);
     if (window == nullptr){
@@ -122,17 +158,14 @@ int main(){
     
     Shader shader("shaders/basic.vert.glsl", "shaders/basic.frag.glsl");
     Shader lightShader("shaders/light.vert.glsl", "shaders/light.frag.glsl");
-    
 
-    // VAO lightVAO;
-    
     glm::vec4 lightColor = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
     glm::vec3 lightPos = glm::vec3(1.5f, 0.5f, 0.0f);
     glm::mat4 lightModel = glm::mat4(1.0f);
     lightModel = glm::translate(lightModel, lightPos);
 
     // Texture
-    std::unique_ptr popCatTexture = std::make_unique<Texture>("assets/pop-cat.jpg", GL_TEXTURE_2D, GL_TEXTURE0, GL_RGB, GL_UNSIGNED_BYTE);
+    std::unique_ptr popCatTexture = std::make_unique<Texture>("assets/test.png", GL_TEXTURE_2D, GL_TEXTURE0, GL_RGB, GL_UNSIGNED_BYTE);
     popCatTexture->Bind(0);
     shader.AttachTextureUnit(0, "tex0");
     textures.push_back(std::move(popCatTexture));
@@ -145,8 +178,22 @@ int main(){
     glfwSetWindowUserPointer(window, &camera);
     glfwSetFramebufferSizeCallback(window, frameBufferCallback);
     
-    Mesh mesh(vertices, vertexIndices, std::move(textures), GL_STATIC_DRAW);
+    Mesh cubeMesh(vertices, vertexIndices, std::move(textures), GL_STATIC_DRAW);
     Mesh lightMesh(lightVertices, lightIndices, std::move(emptyTextures), GL_STATIC_DRAW);
+    
+    Shader chunkShader("shaders/basic.vert.glsl", "shaders/basic.frag.glsl");
+    std::vector<Vertex> chunkVertices;
+    std::vector<GLuint> chunkIndices;
+    std::vector<std::unique_ptr<Texture>> chunkTexture; 
+    
+    // Texture
+    std::unique_ptr chunkGrass = std::make_unique<Texture>("assets/test.png", GL_TEXTURE_2D, GL_TEXTURE0, GL_RGB, GL_UNSIGNED_BYTE);
+    chunkGrass->Bind(1);
+    chunkShader.AttachTextureUnit(1, "tex0");
+    chunkTexture.push_back(std::move(chunkGrass));
+
+    Chunk firstChunk(chunkVertices, chunkIndices, std::move(chunkTexture), GL_STATIC_DRAW);
+    firstChunk.GenerateMesh();
 
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LESS);
@@ -183,7 +230,7 @@ int main(){
         camera.UpdateMatrix(45.0f, 0.1f, 100.0f);
         camera.SetUniformMatrix(shader, "camMatrix");
 
-        mesh.Draw(shader, camera);
+        cubeMesh.Draw(shader, camera);
         
         lightShader.Activate();
         lightShader.SetMat4("model", lightModel);
@@ -191,6 +238,7 @@ int main(){
         camera.SetUniformMatrix(lightShader, "camMatrix");
         lightMesh.Draw(lightShader, camera);
 
+        firstChunk.Render(chunkShader, camera, 1, 1, 0);
 
         // swap buffers
         glfwSwapBuffers(window);
