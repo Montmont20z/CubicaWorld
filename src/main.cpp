@@ -165,11 +165,10 @@ int main(){
     lightModel = glm::translate(lightModel, lightPos);
 
     // Texture
-    std::unique_ptr popCatTexture = std::make_unique<Texture>("assets/test.png", GL_TEXTURE_2D, GL_TEXTURE0, GL_RGB, GL_UNSIGNED_BYTE);
-    popCatTexture->Bind(0);
-    shader.AttachTextureUnit(0, "tex0");
+    std::unique_ptr popCatTexture = std::make_unique<Texture>("assets/pop-cat.jpg", GL_TEXTURE_2D, GL_TEXTURE0, GL_RGB, GL_UNSIGNED_BYTE);
+    std::cout << "pop-cat ID=" << popCatTexture->ID<< std::endl;
     textures.push_back(std::move(popCatTexture));
-
+    
     float rotation = 0.0f;
     float prevTime = glfwGetTime();
     
@@ -188,12 +187,14 @@ int main(){
     
     // Texture
     std::unique_ptr chunkGrass = std::make_unique<Texture>("assets/test.png", GL_TEXTURE_2D, GL_TEXTURE0, GL_RGB, GL_UNSIGNED_BYTE);
-    chunkGrass->Bind(1);
-    chunkShader.AttachTextureUnit(1, "tex0");
+    std::cout << "chunk ID=" << chunkGrass->ID << std::endl;
     chunkTexture.push_back(std::move(chunkGrass));
 
     Chunk firstChunk(chunkVertices, chunkIndices, std::move(chunkTexture), GL_STATIC_DRAW);
     firstChunk.GenerateMesh();
+
+    // after creating popCatTexture and chunkGrass
+
 
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LESS);
@@ -203,7 +204,6 @@ int main(){
         /* check game state -> input -> update -> render */
         // process input
         glfwPollEvents();
-        // processInput(window);
         camera.ProcessInput(window);
         
         // render
@@ -221,7 +221,7 @@ int main(){
  
 
  
-        shader.Activate();
+        shader.Activate();std::cout << "shader tex0 location=" << glGetUniformLocation(shader.ID, "tex0") << "\n";
         shader.SetVec3("lightPos", lightPos);
         shader.SetVec4("lightColor", lightColor);
         shader.SetVec3("camPos", camera.Position);
@@ -230,6 +230,8 @@ int main(){
         camera.UpdateMatrix(45.0f, 0.1f, 100.0f);
         camera.SetUniformMatrix(shader, "camMatrix");
 
+        // shader.AttachTextureUnit(0, "tex0");
+;
         cubeMesh.Draw(shader, camera);
         
         lightShader.Activate();
@@ -238,7 +240,9 @@ int main(){
         camera.SetUniformMatrix(lightShader, "camMatrix");
         lightMesh.Draw(lightShader, camera);
 
-        firstChunk.Render(chunkShader, camera, 1, 1, 0);
+        chunkShader.Activate();std::cout << "chunkShader tex0 location=" << glGetUniformLocation(chunkShader.ID, "tex0") << "\n";
+        // chunkShader.AttachTextureUnit(0, "tex0");
+        firstChunk.Render(chunkShader, camera, 0, 0, 0);
 
         // swap buffers
         glfwSwapBuffers(window);
@@ -249,7 +253,3 @@ int main(){
     glfwTerminate();
     return 0;
 }
-
-
-
-

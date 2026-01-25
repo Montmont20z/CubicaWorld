@@ -3,8 +3,16 @@
 #include <iostream>
 
 Chunk::Chunk(std::vector<Vertex> &vertices, std::vector<GLuint> &indices, std::vector<std::unique_ptr<Texture>>&& textures, GLenum usage = GL_STATIC_DRAW)
-    : chunkMesh_(vertices, indices, std::move(textures), usage)
+    : textures_(std::move(textures))
+    , chunkMesh_(vertices, indices, std::vector<std::unique_ptr<Texture>>{}, usage)
 {
+    // initialize blocks chunk
+    for (int x = 0; x < CHUNK_SIZE; ++x)
+        for (int y = 0; y < 64; ++y)
+            for (int z = 0; z < CHUNK_SIZE; ++z)
+                blocks_[x][y][z] = BlockType::Dirt;
+    // auto* first = &blocks_[0][0][0];
+    // std::fill(first, first + CHUNK_SIZE * CHUNK_HEIGHT * CHUNK_SIZE, BlockType::Dirt);
 }
 
 
@@ -50,7 +58,7 @@ void Chunk::GenerateMesh()
     
     std::vector<Vertex> vertices;
     std::vector<GLuint> indices;
-    std::vector<std::unique_ptr<Texture>> emptyTextures; // No textures for light
+    // std::vector<std::unique_ptr<Texture>> emptyTextures; // No textures for light
     
     // for every block in chunk
     for (int x = 0; x < CHUNK_SIZE; x++){
@@ -74,7 +82,7 @@ void Chunk::GenerateMesh()
 
     // upload buffers to Mesh
     if (!vertices.empty() || !indices.empty()){
-        chunkMesh_  = Mesh(vertices, indices, std::move(emptyTextures), GL_STATIC_DRAW);
+        chunkMesh_  = Mesh(vertices, indices, std::move(textures_), GL_STATIC_DRAW);
     }
 }
 
@@ -83,8 +91,18 @@ void Chunk::Render(const Shader& shader, const Camera& camera, float chunkX, flo
     if (chunkMesh_.IndexCount() == 0) return; // skip if no index to draw
 
     shader.Activate();
+    // Translate by chunk * CHUNK_SIZE (assuming CHUNK_SIZE = 16 and CHUNK_HEIGHT = 256)
+    const float CHUNK_SIZE_F = static_cast<float>(CHUNK_SIZE);      // e.g. 16
+    const float CHUNK_HEIGHT_F = static_cast<float>(CHUNK_HEIGHT);  // e.g. 256
+
+    glm::vec3 worldOffset = glm::vec3(
+        chunkX * CHUNK_SIZE_F,
+        chunkY * CHUNK_HEIGHT_F,
+        chunkZ * CHUNK_SIZE_F
+    );
+
     // set model matrix to put local coordinates into world coordinates
-    glm::mat4 model = glm::translate(glm::mat4(1.0f), glm::vec3(chunkX, chunkY, chunkZ));
+    glm::mat4 model = glm::translate(glm::mat4(1.0f), worldOffset);
     shader.SetMat4("model", model);
     
     // set camera

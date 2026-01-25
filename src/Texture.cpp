@@ -4,7 +4,7 @@
 #include <iostream>
 
 Texture::Texture(const std::string& path, GLenum texType, GLenum slot, GLenum format, GLenum pixelType )
-    : type(texType)
+    : type_(texType)
 {
     int widthImg, heightImg, numColCh;
     stbi_set_flip_vertically_on_load(true);
@@ -16,23 +16,23 @@ Texture::Texture(const std::string& path, GLenum texType, GLenum slot, GLenum fo
     }
 
     glGenTextures(1, &ID);
-    glBindTexture(texType, ID);
+    glBindTexture(type_, ID);
     
-    glTexParameteri(texType, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR); // last parameter can be GL_NEAREST or GL_LINEAR. GL_NEAREST result in pixel image, GL_LINEAR result in blur image
-    glTexParameteri(texType, GL_TEXTURE_MAG_FILTER, GL_LINEAR_MIPMAP_LINEAR); // last parameter can be GL_NEAREST or GL_LINEAR. GL_NEAREST result in pixel image, GL_LINEAR result in blur image
+    glTexParameteri(type_, GL_TEXTURE_MIN_FILTER, GL_NEAREST); // last parameter can be GL_NEAREST or GL_LINEAR. GL_NEAREST result in pixel image, GL_LINEAR result in blur image
+    glTexParameteri(type_, GL_TEXTURE_MAG_FILTER, GL_NEAREST); // last parameter can be GL_NEAREST or GL_LINEAR. GL_NEAREST result in pixel image, GL_LINEAR result in blur image
     // Axis from x,y,z to s,t,r
     // s,t,r -> GL_TEXTURE_WRAP_S, GL_TEXTURE_WRAP_T, GL_TEXTURE_WRAP_R
     // Options for last param (GL_REPEAT, GL_MIRROR_REPEAT, GL_CAMP_TO_EDGE, GL_CAMP_TO_BORDER)
-    glTexParameteri(texType, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(texType, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(type_, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(type_, GL_TEXTURE_WRAP_T, GL_REPEAT);
     
     // For GL_CAMP_TO_BORDER
     // float flatColor[] = {1.0f,1.0f,1.0f,1.0f};
-    // glTexParameterfv(texType, GL_TEXTURE_BORDER_COLOR, flatColor); 
-    glTexImage2D(texType, 0, format, widthImg, heightImg, 0, format, pixelType, bytes);
-    glGenerateMipmap(texType);
+    // glTexParameterfv(type, GL_TEXTURE_BORDER_COLOR, flatColor); 
+    glTexImage2D(type_, 0, format, widthImg, heightImg, 0, format, pixelType, bytes);
+    glGenerateMipmap(type_);
 
-    glBindTexture(texType, 0);
+    glBindTexture(type_, 0);
     stbi_image_free(bytes);     // free up heap resources
 }
 
@@ -47,7 +47,7 @@ Texture::~Texture() noexcept
 // move constructor
 Texture::Texture(Texture &&other) noexcept
     : ID(other.ID)
-    , type(other.type)
+    , type_(other.type_)
 {
     other.ID = 0;
 }
@@ -59,7 +59,7 @@ Texture &Texture::operator=(Texture &&other) noexcept
             glDeleteTextures(1, &ID);
         }
         ID = other.ID;
-        type = other.type;
+        type_ = other.type_;
         
         other.ID = 0;
     }
@@ -69,10 +69,10 @@ Texture &Texture::operator=(Texture &&other) noexcept
 void Texture::Bind(GLuint unit) const noexcept
 {
     glActiveTexture(GL_TEXTURE0 + unit);
-    glBindTexture(type, ID);
+    glBindTexture(type_, ID);
 }
 
 void Texture::Unbind() const noexcept
 {
-    glBindTexture(type, 0);
+    glBindTexture(type_, 0);
 }

@@ -5,7 +5,7 @@
 
 class Texture {
 private:
-    GLuint type{GL_TEXTURE_2D};
+    GLuint type_{GL_TEXTURE_2D};
 public:
     GLuint ID{0};
     Texture(const std::string& path, GLenum texType, GLenum slot, GLenum format, GLenum pixelType );

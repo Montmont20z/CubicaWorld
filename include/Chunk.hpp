@@ -59,6 +59,6 @@ public:
 private:
     BlockType blocks_[16][256][16] = { BlockType::Dirt };
     Mesh chunkMesh_;
-
+    std::vector<std::unique_ptr<Texture>> textures_;
 
 };

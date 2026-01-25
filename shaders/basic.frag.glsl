@@ -104,9 +104,10 @@ void main()
     // FragColor = spotLight();
     // FragColor =  vec4(color, 1.0) * lightColor * (diffuse + ambient + specular);
     // FragColor = vec4(vec3(linearizeDepth(gl_FragCoord.z) / far), 1.0f);
-    float depth = logisticDepth(gl_FragCoord.z, 0.5f, 5.0f);
-    FragColor = directionalLight() * (1.0f - depth) + vec4(depth * vec3(0.85f, 0.85f, 0.90f), 1.0f);
+    float depth = logisticDepth(gl_FragCoord.z, 0.1f, 20.0f);
+    // FragColor = directionalLight() * (1.0f - depth) + vec4(depth * vec3(0.85f, 0.85f, 0.90f), 1.0f);
     // float zVal = linearizeDepth(gl_FragCoord.z);
     // FragColor = vec4(vec3(zVal / far), 1.0); // white = far, black = near
 
+    FragColor = texture(tex0, texCoord) * vec4(color,1.0);
 }
