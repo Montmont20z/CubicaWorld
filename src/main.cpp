@@ -166,7 +166,6 @@ int main(){
 
     // Texture
     std::unique_ptr popCatTexture = std::make_unique<Texture>("assets/pop-cat.jpg", GL_TEXTURE_2D, GL_TEXTURE0, GL_RGB, GL_UNSIGNED_BYTE);
-    std::cout << "pop-cat ID=" << popCatTexture->ID<< std::endl;
     textures.push_back(std::move(popCatTexture));
     
     float rotation = 0.0f;
@@ -187,7 +186,6 @@ int main(){
     
     // Texture
     std::unique_ptr chunkGrass = std::make_unique<Texture>("assets/test.png", GL_TEXTURE_2D, GL_TEXTURE0, GL_RGB, GL_UNSIGNED_BYTE);
-    std::cout << "chunk ID=" << chunkGrass->ID << std::endl;
     chunkTexture.push_back(std::move(chunkGrass));
 
     Chunk firstChunk(chunkVertices, chunkIndices, std::move(chunkTexture), GL_STATIC_DRAW);
@@ -221,7 +219,7 @@ int main(){
  
 
  
-        shader.Activate();std::cout << "shader tex0 location=" << glGetUniformLocation(shader.ID, "tex0") << "\n";
+        shader.Activate();
         shader.SetVec3("lightPos", lightPos);
         shader.SetVec4("lightColor", lightColor);
         shader.SetVec3("camPos", camera.Position);
@@ -240,7 +238,7 @@ int main(){
         camera.SetUniformMatrix(lightShader, "camMatrix");
         lightMesh.Draw(lightShader, camera);
 
-        chunkShader.Activate();std::cout << "chunkShader tex0 location=" << glGetUniformLocation(chunkShader.ID, "tex0") << "\n";
+        chunkShader.Activate();
         // chunkShader.AttachTextureUnit(0, "tex0");
         firstChunk.Render(chunkShader, camera, 0, 0, 0);
 

@@ -9,6 +9,12 @@ GLEW or GLAD for OpenGL loading (GLAD is simpler)
 GLM for math (vectors, matrices)
 stb_image for texture loading (single header library)
 
+# Common Commands
+```bash
+# regenerate mermaid diagram 
+clang-uml --generator mermaid
+```
+
 
 ## Realistic 1.5 month scope:
 ### Week 1-2: Foundation

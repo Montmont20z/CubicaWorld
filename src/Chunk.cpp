@@ -8,7 +8,7 @@ Chunk::Chunk(std::vector<Vertex> &vertices, std::vector<GLuint> &indices, std::v
 {
     // initialize blocks chunk
     for (int x = 0; x < CHUNK_SIZE; ++x)
-        for (int y = 0; y < 64; ++y)
+        for (int y = 0; y < CHUNK_HEIGHT; ++y)
             for (int z = 0; z < CHUNK_SIZE; ++z)
                 blocks_[x][y][z] = BlockType::Dirt;
     // auto* first = &blocks_[0][0][0];
