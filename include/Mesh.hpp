@@ -10,10 +10,13 @@
 #include "VAO.hpp"
 #include "EBO.hpp"
 #include "Camera.hpp"
+#include "MeshData.hpp"
+#include "Vertex.hpp"
 
 class Mesh {
 public:
     Mesh(const std::vector<Vertex> &vertices, const std::vector<GLuint> &indices, std::vector<std::unique_ptr<Texture>>&& textures, GLenum usage);
+    // Mesh(const std::vector<ChunkVertex> &vertices, const std::vector<GLuint> &indices, std::vector<std::unique_ptr<Texture>>&& textures, GLenum usage);
     ~Mesh() noexcept;
 
     // no copy 
@@ -26,6 +29,7 @@ public:
 
     void Draw(const Shader &shader, const Camera &camare) const;
     void SetTexture(const Texture& texture);
+    void Upload(MeshData&& meshData);
     
     GLuint IndexCount() const;
 

@@ -25,11 +25,18 @@ Mesh::Mesh(const std::vector<Vertex> &vertices,
     vbo_.Unbind();
     vao_.Unbind();
     ebo_.Unbind();
-    
-    // Texture
-    // Texture popCat("assets/pop-cat.jpg", GL_TEXTURE_2D, GL_TEXTURE0, GL_RGB, GL_UNSIGNED_BYTE);
-    // popCat.texUnit(shader, "tex0", 0);
 }
+
+
+// Mesh::Mesh(const std::vector<ChunkVertex> &vertices, const std::vector<GLuint> &indices, std::vector<std::unique_ptr<Texture>>&& textures, GLenum usage)
+//     : vertices_(vertices)
+//     , indices_(indices)
+//     , textures_(std::move(textures))
+//     , vbo_(vertices, usage)
+//     , ebo_(indices, usage)
+// {
+
+// }
 
 Mesh::~Mesh() noexcept
 {
@@ -71,6 +78,12 @@ void Mesh::Draw(const Shader &shader, const Camera &camare) const
      
     // draw the mesh
     glDrawElements(GL_TRIANGLES, indices_.size(), GL_UNSIGNED_INT, (void*)0); 
+}
+
+void Mesh::Upload(MeshData &&meshData)
+{
+    
+    // glBufferData();
 }
 
 GLuint Mesh::IndexCount() const

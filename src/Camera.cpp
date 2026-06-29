@@ -64,7 +64,7 @@ void Camera::ProcessInput(GLFWwindow *window)
 	{
 		MoveSpeed = 2.1f;
 	}
-	else if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_RELEASE)
+    else
 	{
 		MoveSpeed = 0.32f;
 	}

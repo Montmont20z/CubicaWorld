@@ -1,17 +1,12 @@
 #pragma once
 #include <glad/glad.h>
-#include <glm/vec3.hpp>
-#include <glm/vec2.hpp>
 #include <vector>
+#include "Vertex.hpp"
 
-struct Vertex
-{
-    glm::vec3 position;
-    glm::vec3 normal;
-    glm::vec3 color;
-    glm::vec2 texCoords;
-};
-
+// Templated because the buffer logic (gen/bind/upload/delete) is identical
+// for any vertex type — this is the real DRY case, unlike Mesh/ChunkMesh
+// which differ in attribute layout, not buffer logic.
+// template<typename VertexT>
 class VBO {
 public:
     GLuint ID{0};
