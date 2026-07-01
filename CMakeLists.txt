@@ -27,13 +27,13 @@ add_executable(cubica
     src/main.cpp
     src/Shader.cpp
     src/VAO.cpp
-    src/VBO.cpp
     src/EBO.cpp
     src/Texture.cpp
     src/Camera.cpp
     src/Mesh.cpp
     src/Chunk.cpp
     src/ChunkManager.cpp
+    src/ChunkMesh.cpp
 )
 
 target_link_libraries(cubica

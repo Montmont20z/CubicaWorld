@@ -13,10 +13,10 @@ Mesh::Mesh(const std::vector<Vertex> &vertices,
 {
     vao_.Bind();
 
-    vao_.LinkAttrib(vbo_, 0, 3, GL_FLOAT, sizeof(Vertex), (void*)offsetof(Vertex, position));
-    vao_.LinkAttrib(vbo_, 1, 3, GL_FLOAT, sizeof(Vertex), (void*)offsetof(Vertex, normal));
-    vao_.LinkAttrib(vbo_, 2, 3, GL_FLOAT, sizeof(Vertex), (void*)offsetof(Vertex, color));
-    vao_.LinkAttrib(vbo_, 3, 2, GL_FLOAT, sizeof(Vertex), (void*)offsetof(Vertex, texCoords));
+    vao_.LinkAttrib(vbo_.ID, 0, 3, GL_FLOAT, sizeof(Vertex), (void*)offsetof(Vertex, position));
+    vao_.LinkAttrib(vbo_.ID, 1, 3, GL_FLOAT, sizeof(Vertex), (void*)offsetof(Vertex, normal));
+    vao_.LinkAttrib(vbo_.ID, 2, 3, GL_FLOAT, sizeof(Vertex), (void*)offsetof(Vertex, color));
+    vao_.LinkAttrib(vbo_.ID, 3, 2, GL_FLOAT, sizeof(Vertex), (void*)offsetof(Vertex, texCoords));
     
     // create EBO while VAO is bound so VAO stores element array binding
     ebo_.Bind();
@@ -26,17 +26,6 @@ Mesh::Mesh(const std::vector<Vertex> &vertices,
     vao_.Unbind();
     ebo_.Unbind();
 }
-
-
-// Mesh::Mesh(const std::vector<ChunkVertex> &vertices, const std::vector<GLuint> &indices, std::vector<std::unique_ptr<Texture>>&& textures, GLenum usage)
-//     : vertices_(vertices)
-//     , indices_(indices)
-//     , textures_(std::move(textures))
-//     , vbo_(vertices, usage)
-//     , ebo_(indices, usage)
-// {
-
-// }
 
 Mesh::~Mesh() noexcept
 {

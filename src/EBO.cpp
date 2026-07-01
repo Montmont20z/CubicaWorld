@@ -1,6 +1,7 @@
 #include "EBO.hpp"
 
 EBO::EBO(const std::vector<GLuint>& indices, GLenum usage = GL_STATIC_DRAW)
+    : usage_(usage)
 {
     Count = static_cast<GLsizei>(indices.size());
     if (indices.empty()){
@@ -11,7 +12,7 @@ EBO::EBO(const std::vector<GLuint>& indices, GLenum usage = GL_STATIC_DRAW)
     glGenBuffers(1, &ID); 
     // upload index data — (EBO binding is stored in the VAO) - (to GPU)
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ID); // Bind the buffer as the current array buffer. Subsequent glBufferData/glVertexAttribPointer calls refer to this buffer.
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, static_cast<GLsizei>(indices.size() * sizeof(GLuint)), indices.data(), usage); // GL_STATIC_DRAW hints that data will not change frequenctly
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, static_cast<GLsizei>(indices.size() * sizeof(GLuint)), indices.data(), usage_);
 }
 
 EBO::~EBO() noexcept
@@ -46,6 +47,14 @@ EBO& EBO::operator=(EBO&& other) noexcept
         other.Count = 0;
     }
     return *this;
+}
+
+
+void EBO::Update(const std::vector<GLuint>& indices)
+{
+    Count = static_cast<GLsizei>(indices.size());
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ID);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, Count * sizeof(GLuint), indices.data(), usage_);
 }
 
 void EBO::Bind() const

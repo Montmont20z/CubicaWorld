@@ -1,6 +1,5 @@
 #pragma once
 #include <glad/glad.h>
-#include "VBO.hpp"
 
 class VAO {
 public:
@@ -17,7 +16,7 @@ public:
     VAO& operator=(VAO&& other) noexcept;
     
     // NOTE: caller must bind VAO before calling LinkAttrib so the attribute state is recorded in this VAO. 
-    void LinkAttrib(const VBO& VBO, GLuint layout, GLuint numComponent, GLenum type, GLsizeiptr stride, void* offset) const;
+    void LinkAttrib(GLuint vboID, GLuint layout, GLuint numComponent, GLenum type, GLsizeiptr stride, void* offset, bool isInteger = false) const;
     void Bind() const;
     void Unbind() const;
 };

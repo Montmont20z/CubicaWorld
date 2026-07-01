@@ -203,6 +203,7 @@ int main(){
         
         camera.UpdateMatrix(45.0f, 0.1f, 500.0f);
         
+        // activate shader for chunkManager update
         blockShader.Activate();
         blockShader.SetVec3("lightPos", lightPos);
         blockShader.SetVec4("lightColor", lightColor);

@@ -69,17 +69,7 @@ void ChunkManager::Update(const glm::vec3 &cameraPos, const Shader &shader, cons
            if (chunks_.count(coord)) continue; // skip if the chunk already build
             
             // Allocate Chunk (no GL yet - happens on Upload if Ready)
-            auto chunk = std::make_unique<Chunk>(
-                   coord,
-                   /// TODO: replace with TextureManager lookup 
-                   [&]() -> std::vector<std::unique_ptr<Texture>> {
-                        std::vector<std::unique_ptr<Texture>> tex;
-                        tex.push_back(std::make_unique<Texture>(
-                            blockTexturePath_, GL_TEXTURE_2D, GL_TEXTURE0, GL_RGB, GL_UNSIGNED_BYTE
-                        ));
-                        return tex;
-                   }()
-            );
+            auto chunk = std::make_unique<Chunk>(coord);
             Chunk* rawChunk = chunk.get();
             chunks_[coord] = std::move(chunk);
 
@@ -127,13 +117,24 @@ void ChunkManager::Update(const glm::vec3 &cameraPos, const Shader &shader, cons
             coord = uploadQueue_.front();
             uploadQueue_.pop();
         }
-        std::lock_guard lock(chunksMutex_);
-        if (auto* chunk = GetChunk(coord))
-            chunk->UploadIfReady();
+        {
+            std::lock_guard lock(chunksMutex_);
+            auto it = chunks_.find(coord);
+            if (it != chunks_.end())
+                it->second->UploadIfReady();
+        }
         ++uploads; 
     }
 
     // 5. Draw all uploaded chunk
+    // Shader is already Activate()'d by the caller
+    {
+        std::lock_guard lock(chunksMutex_);
+        for (auto& [coord, chunk] : chunks_){
+            chunk->Render(shader, camera);
+        }
+
+    }
 }
 
 void ChunkManager::WorkerLoop()

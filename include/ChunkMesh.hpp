@@ -1,8 +1,6 @@
 #pragma once
 #include <memory>
 #include <glad/glad.h>
-#include "Shader.hpp"
-#include "Camera.hpp"
 #include "VAO.hpp"
 #include "VBO.hpp"
 #include "EBO.hpp"

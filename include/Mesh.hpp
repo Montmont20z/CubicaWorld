@@ -8,6 +8,7 @@
 #include "Shader.hpp"
 #include "Texture.hpp"
 #include "VAO.hpp"
+#include "VBO.hpp"
 #include "EBO.hpp"
 #include "Camera.hpp"
 #include "MeshData.hpp"
@@ -35,7 +36,7 @@ public:
 
 private:
     VAO vao_;
-    VBO vbo_;
+    VBO<Vertex> vbo_;
     EBO ebo_;
     std::vector<std::unique_ptr<Texture>> textures_;
     std::vector<Vertex> vertices_;

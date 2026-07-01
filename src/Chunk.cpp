@@ -2,8 +2,8 @@
 #include "BlockType.hpp"
 #include "Constants.hpp"
 #include "MeshData.hpp"
-#include "Mesh.hpp"
-#include "Vertex.hpp"
+#include "ChunkMesh.hpp"
+
 #include <atomic>
 #include <cassert>
 #include <glm/fwd.hpp>
@@ -15,72 +15,54 @@
 // Position is in block local space (0..1 range), translate per-block in BuildMesh
 
 namespace {
-//     Position           Normal     Color   TexCoords
-// Right (x = +0.5) - outward normal (1,0,0)
+// texLayer=0, ao=3 (full bright) — placeholders until texture array + AO pass exist.
 const ChunkVertex RIGHT_FACE[4] = {
-    {{ 0.5f, 0.0f, -0.5f}, { 1,0,0}, {0,0}, 0,0},
-    {{ 0.5f, 1.0f, -0.5f}, { 1,0,0}, {0,1}, 0,0},
-    {{ 0.5f, 1.0f,  0.5f}, { 1,0,0}, {1,1}, 0,0},
-    {{ 0.5f, 0.0f,  0.5f}, { 1,0,0}, {1,0}, 0,0},
+    {{ 0.5f, 0.0f, -0.5f}, { 1,0,0}, {0,0}, 0, 3},
+    {{ 0.5f, 1.0f, -0.5f}, { 1,0,0}, {0,1}, 0, 3},
+    {{ 0.5f, 1.0f,  0.5f}, { 1,0,0}, {1,1}, 0, 3},
+    {{ 0.5f, 0.0f,  0.5f}, { 1,0,0}, {1,0}, 0, 3},
 };
-// Left (x = -0.5) - outward normal (-1,0,0)
 const ChunkVertex LEFT_FACE[4] = {
-    {{-0.5f, 0.0f,  0.5f}, {-1.0f, 0.0f, 0.0f}, {1,1}, 0,0}, // 8
-    {{-0.5f, 0.0f, -0.5f}, {-1.0f, 0.0f, 0.0f}, {1,1}, 0,0}, // 9
-    {{-0.5f, 1.0f, -0.5f}, {-1.0f, 0.0f, 0.0f}, {1,1}, 0,0}, //10
-    {{-0.5f, 1.0f,  0.5f}, {-1.0f, 0.0f, 0.0f}, {1,1}, 0,0}, //11
+    {{-0.5f, 0.0f,  0.5f}, {-1,0,0}, {0,0}, 0, 3},
+    {{-0.5f, 1.0f,  0.5f}, {-1,0,0}, {0,1}, 0, 3},
+    {{-0.5f, 1.0f, -0.5f}, {-1,0,0}, {1,1}, 0, 3},
+    {{-0.5f, 0.0f, -0.5f}, {-1,0,0}, {1,0}, 0, 3},
 };
-
-// Front (z = +0.5) - outward normal (0,0,1)
-const ChunkVertex FRONT_FACE[4] = {
-    {{-0.5f, 0.0f,  0.5f}, { 0.0f, 0.0f, 1.0f}, {1.0f,1.0f}, 0,0}, //16
-    {{ 0.5f, 0.0f,  0.5f}, { 0.0f, 0.0f, 1.0f}, {1.0f,1.0f}, 1,0}, //17
-    {{ 0.5f, 1.0f,  0.5f}, { 0.0f, 0.0f, 1.0f}, {1.0f,1.0f}, 1,1}, //18
-    {{-0.5f, 1.0f,  0.5f}, { 0.0f, 0.0f, 1.0f}, {1.0f,1.0f}, 0,1}, //19
-};
-// Back (z = -0.5) - outward normal (0,0,-1)
-const ChunkVertex BACK_FACE[4] = {
-    {{-0.5f, 0.0f, -0.5f}, { 0.0f, 0.0f,-1.0f}, {1.0f,1.0f}, 0,0}, //20
-    {{ 0.5f, 0.0f, -0.5f}, { 0.0f, 0.0f,-1.0f}, {1.0f,1.0f}, 1,0}, //21
-    {{ 0.5f, 1.0f, -0.5f}, { 0.0f, 0.0f,-1.0f}, {1.0f,1.0f}, 1,1}, //22
-    {{-0.5f, 1.0f, -0.5f}, { 0.0f, 0.0f,-1.0f}, {1.0f,1.0f}, 0,1}, //23
-};
-
-// Bottom (y = 0) - outward normal (0,-1,0)
-const ChunkVertex BOTTOM_FACE[4] = {
-    {{-0.5f, 0.0f,  0.5f}, { 0.0f,-1.0f, 0.0f}, {1.0f,1.0f}, 0,0}, // 0
-    {{-0.5f, 0.0f, -0.5f}, { 0.0f,-1.0f, 0.0f}, {1.0f,1.0f}, 1,0}, // 1
-    {{ 0.5f, 0.0f, -0.5f}, { 0.0f,-1.0f, 0.0f}, {1.0f,1.0f}, 1,1}, // 2
-    {{ 0.5f, 0.0f,  0.5f}, { 0.0f,-1.0f, 0.0f}, {1.0f,1.0f}, 0,1}, // 3
-};
-// Top (y = 1) - outward normal (0,1,0)
 const ChunkVertex TOP_FACE[4] = {
-    {{ 0.5f, 1.0f,  0.5f}, { 0.0f, 1.0f, 0.0f}, {1.0f,1.0f}, 0,0}, // 4
-    {{ 0.5f, 1.0f, -0.5f}, { 0.0f, 1.0f, 0.0f}, {1.0f,1.0f}, 1,0}, // 5
-    {{-0.5f, 1.0f, -0.5f}, { 0.0f, 1.0f, 0.0f}, {1.0f,1.0f}, 1,1}, // 6
-    {{-0.5f, 1.0f,  0.5f}, { 0.0f, 1.0f, 0.0f}, {1.0f,1.0f}, 0,1}, // 7
+    {{-0.5f, 1.0f,  0.5f}, {0,1,0}, {0,0}, 0, 3},
+    {{ 0.5f, 1.0f,  0.5f}, {0,1,0}, {1,0}, 0, 3},
+    {{ 0.5f, 1.0f, -0.5f}, {0,1,0}, {1,1}, 0, 3},
+    {{-0.5f, 1.0f, -0.5f}, {0,1,0}, {0,1}, 0, 3},
 };
-
+const ChunkVertex BOTTOM_FACE[4] = {
+    {{-0.5f, 0.0f, -0.5f}, {0,-1,0}, {0,0}, 0, 3},
+    {{ 0.5f, 0.0f, -0.5f}, {0,-1,0}, {1,0}, 0, 3},
+    {{ 0.5f, 0.0f,  0.5f}, {0,-1,0}, {1,1}, 0, 3},
+    {{-0.5f, 0.0f,  0.5f}, {0,-1,0}, {0,1}, 0, 3},
+};
+const ChunkVertex FRONT_FACE[4] = {
+    {{-0.5f, 0.0f,  0.5f}, {0,0,1}, {0,0}, 0, 3},
+    {{ 0.5f, 0.0f,  0.5f}, {0,0,1}, {1,0}, 0, 3},
+    {{ 0.5f, 1.0f,  0.5f}, {0,0,1}, {1,1}, 0, 3},
+    {{-0.5f, 1.0f,  0.5f}, {0,0,1}, {0,1}, 0, 3},
+};
+const ChunkVertex BACK_FACE[4] = {
+    {{ 0.5f, 0.0f, -0.5f}, {0,0,-1}, {0,0}, 0, 3},
+    {{-0.5f, 0.0f, -0.5f}, {0,0,-1}, {1,0}, 0, 3},
+    {{-0.5f, 1.0f, -0.5f}, {0,0,-1}, {1,1}, 0, 3},
+    {{ 0.5f, 1.0f, -0.5f}, {0,0,-1}, {0,1}, 0, 3},
+};
 } // namespace
   
-/*
-Chunk::Chunk(std::vector<Vertex> &vertices, std::vector<GLuint> &indices, std::vector<std::unique_ptr<Texture>>&& textures, GLenum usage = GL_STATIC_DRAW)
-    : textures_(std::move(textures))
-    , chunkMesh_(vertices, indices, std::vector<std::unique_ptr<Texture>>{}, usage)
-{
-    // initialize blocks chunk
-    for (int x = 0; x < CHUNK_SIZE; ++x)
-        for (int y = 0; y < CHUNK_HEIGHT; ++y)
-            for (int z = 0; z < CHUNK_SIZE; ++z)
-                blocks_[x][y][z] = BlockType::Dirt;
-    // auto* first = &blocks_[0][0][0];
-    // std::fill(first, first + CHUNK_SIZE * CHUNK_HEIGHT * CHUNK_SIZE, BlockType::Dirt);
-}
-*/
-Chunk::Chunk(ChunkCoord coord, std::vector<std::unique_ptr<Texture>> &&textures)
-    : textures_(std::move(textures))
-    , chunkMesh_({}, {}, {}, GL_DYNAMIC_DRAW) // empty mesh, re-uploaded after BuildMesh
-    , coord_(coord)
+// Chunk::Chunk(ChunkCoord coord, std::vector<std::unique_ptr<Texture>> &&textures)
+//     : textures_(std::move(textures))
+//     , chunkMesh_({}, {}, {}, GL_DYNAMIC_DRAW) // empty mesh, re-uploaded after BuildMesh
+//     , coord_(coord)
+//     , blocks_(std::make_unique<BlockType[]>(CHUNK_SIZE*CHUNK_HEIGHT*CHUNK_SIZE))
+// {
+// }
+Chunk::Chunk(ChunkCoord coord)
+    : coord_(coord)
     , blocks_(std::make_unique<BlockType[]>(CHUNK_SIZE*CHUNK_HEIGHT*CHUNK_SIZE))
 {
 }
@@ -175,15 +157,7 @@ void Chunk::BuildMesh(const ChunkNeighbors& neighbors){
 
 void Chunk::UploadIfReady(){
     if (State() != ChunkState::MeshReady) return;
-    
-    if (!pendingMesh_.Empty()){
-        // Reconstruct the Mesh with the new data.
-        // TODO: once Mesh gains an Upload(MeshData&&) re-upload path, use that
-        //       instead of destroying and recreating GL objects.
-        chunkMesh_ = Mesh(pendingMesh_.vertices, pendingMesh_.indices, std::move(textures_), GL_DYNAMIC_DRAW);
-    }
-    pendingMesh_.Clear(); // free CPU memory - GPU is the source of truth now
-
+    chunkMesh_.Upload(std::move(pendingMesh_));    // Upload() clears pendingMesh_ internally
     state_.store(ChunkState::Uploaded, std::memory_order_release);
 }
 
@@ -200,7 +174,7 @@ void Chunk::Render(const Shader& shader, const Camera& camera) const
    );
    shader.SetMat4("model", glm::translate(glm::mat4(1.0f), worldPos));
    camera.SetUniformMatrix(shader, "camMatrix");
-   chunkMesh_.Draw(shader, camera);
+   chunkMesh_.Draw();
 }
 
 

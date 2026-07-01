@@ -1,9 +1,12 @@
 #pragma once
 #include <atomic>
-#include "Mesh.hpp"
+#include "Camera.hpp"
+#include "ChunkMesh.hpp"
 #include "BlockType.hpp"
 #include "MeshData.hpp"
 #include "Constants.hpp"
+#include "Shader.hpp"
+
 
 
 struct ChunkCoord {
@@ -47,18 +50,18 @@ class Chunk {
 public:
     // Chunk(std::vector<Vertex> &vertices, std::vector<GLuint> &indices, std::vector<std::unique_ptr<Texture>> &&textures, GLenum usage);
     // Take ownership of texture. coord identifies world position
-    Chunk(ChunkCoord coord, std::vector<std::unique_ptr<Texture>> &&textures);
+    // Chunk(ChunkCoord coord, std::vector<std::unique_ptr<Texture>> &&textures);
+    explicit Chunk(ChunkCoord coord);
     
-    // --- Called by worker threads ---
+    // ----------------- Called by worker threads -------------------------
     
     // Fill blocks_ with solid data (flat fill for now; swap in Perlin later).
     void Generate();
     
     // Read blocks_ + neighbor blocks, write into pendingMesh_.
     void BuildMesh(const ChunkNeighbors& neighbors = {});
-    // void GenerateMesh();
     
-    // --- Called by main thread only ---
+    // ----------------- Called by main thread only -----------------------
     
     // If state == MeshReady, upload pendingMesh_ to GPU and set state = Uploaded.
     // Clears pendingMesh_ after upload to free CPU memory.
@@ -66,8 +69,6 @@ public:
     // Draw. Shader must already be Activate()'d by caller.
     // model matrix is derived from coord — no parameters needed.
     void Render(const Shader& shader, const Camera& camera) const;
-    // void Render(const Shader& shader, const Camera& camera, float chunkX, float chunkY, float chunkZ); 
-    
     
     // --- Accessor ---
     ChunkCoord Coord() const { return coord_; };
@@ -88,7 +89,7 @@ private:
     BlockType& BlockAt(int x, int y, int z){ return blocks_[x + y * CHUNK_SIZE * CHUNK_SIZE + z * CHUNK_SIZE]; } // this = Chunk*       → non-const overload → returns BlockType& (writable)
     const BlockType& BlockAt(int x, int y, int z) const { return blocks_[x + y * CHUNK_SIZE * CHUNK_HEIGHT + z * CHUNK_SIZE]; } // this = const Chunk* → const overload     → returns const BlockType& (read-only)
 
-    Mesh chunkMesh_;                                        // GPU object, main thread only
+    ChunkMesh chunkMesh_;                                        // GPU object, main thread only
     std::vector<std::unique_ptr<Texture>> textures_;
     MeshData pendingMesh_;
 };
