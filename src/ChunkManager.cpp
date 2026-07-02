@@ -65,13 +65,16 @@ void ChunkManager::Update(const glm::vec3 &cameraPos, const Shader &shader, cons
                 // ... allocate chunk and EnqueueWork here ...
             }
            */
-           
-           if (chunks_.count(coord)) continue; // skip if the chunk already build
-            
-            // Allocate Chunk (no GL yet - happens on Upload if Ready)
-            auto chunk = std::make_unique<Chunk>(coord);
-            Chunk* rawChunk = chunk.get();
-            chunks_[coord] = std::move(chunk);
+            Chunk* rawChunk = nullptr;
+            { 
+                std::lock_guard lock(chunksMutex_);
+                if (chunks_.count(coord)) continue; // skip if the chunk already build
+
+                // Allocate Chunk (no GL yet - happens on Upload if Ready)
+                auto chunk =  std::make_unique<Chunk>(coord);
+                rawChunk = chunk.get();
+                chunks_[coord] = std::move(chunk);
+            }
 
             // Push work onto thread pool
             EnqueueWork([this, rawChunk, coord](){
@@ -95,7 +98,7 @@ void ChunkManager::Update(const glm::vec3 &cameraPos, const Shader &shader, cons
                 std::abs(it->first.x - camChunkX) >= unloadDist || 
                 std::abs(it->first.z - camChunkZ) >= unloadDist 
             ){
-                chunks_.erase(it);
+                it = chunks_.erase(it);
             } else {
                 ++it;
             }
@@ -105,7 +108,18 @@ void ChunkManager::Update(const glm::vec3 &cameraPos, const Shader &shader, cons
     // 3. Re-enqueue Dirty chunks for remesh
     {
         std::lock_guard lock(chunksMutex_);
-        
+        for (auto& [coord, chunk] : chunks_) {
+            if (chunk->State() == ChunkState::Dirty) {
+                Chunk* raw = chunk.get();
+                EnqueueWork([this, raw, coord]() {
+                    raw->BuildMesh(GatherNeighbors(coord));
+                    {
+                        std::lock_guard ul(uploadMutex_);
+                        uploadQueue_.push(coord);
+                    }
+                });
+            }
+        }
     }
     // 4. Drain upload queue on the main thread (GL calls here)
     int uploads = 0;

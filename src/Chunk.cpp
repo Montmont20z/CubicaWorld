@@ -95,7 +95,7 @@ void Chunk::BuildMesh(const ChunkNeighbors& neighbors){
         if (y < 0 || y >= CHUNK_HEIGHT) return y >= CHUNK_HEIGHT;
         
         // Within this chunk
-        if (x >= 0 && x < CHUNK_SIZE && z >= 0 && z <= CHUNK_SIZE)
+        if (x >= 0 && x < CHUNK_SIZE && z >= 0 && z < CHUNK_SIZE)
             return BlockAt(x, y, z) == BlockType::Air;
         
         // Cross-chunk border - query neighbor

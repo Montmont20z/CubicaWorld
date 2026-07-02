@@ -10,13 +10,9 @@
 
 #include "ChunkManager.hpp"
 #include "Shader.hpp"
-#include "VAO.hpp"
-#include "VBO.hpp"
-#include "EBO.hpp"
 #include "Texture.hpp"
 #include "Camera.hpp"
 #include "Mesh.hpp"
-#include "Chunk.hpp"
 
 int screenWidth = 800;
 int screenHeight = 800;
@@ -159,6 +155,7 @@ int main(){
     
     Shader blockShader("shaders/basic.vert.glsl", "shaders/basic.frag.glsl");
     Shader lightShader("shaders/light.vert.glsl", "shaders/light.frag.glsl");
+    Shader chunkShader("shaders/chunk.vert.glsl", "shaders/chunk.frag.glsl");
     
     ChunkManager chunkManager(8);
 
@@ -171,7 +168,7 @@ int main(){
     std::unique_ptr popCatTexture = std::make_unique<Texture>("assets/pop-cat.jpg", GL_TEXTURE_2D, GL_TEXTURE0, GL_RGB, GL_UNSIGNED_BYTE);
     textures.push_back(std::move(popCatTexture));
     
-    Camera camera(screenWidth, screenHeight, glm::vec3(0.0f, 0.0f, 2.0f));
+    Camera camera(screenWidth, screenHeight, glm::vec3(0.0f, 90.0f, 2.0f));
     // set user pointer and callback
     glfwSetWindowUserPointer(window, &camera);
     glfwSetFramebufferSizeCallback(window, frameBufferCallback);
@@ -204,11 +201,14 @@ int main(){
         camera.UpdateMatrix(45.0f, 0.1f, 500.0f);
         
         // activate shader for chunkManager update
-        blockShader.Activate();
-        blockShader.SetVec3("lightPos", lightPos);
-        blockShader.SetVec4("lightColor", lightColor);
-        blockShader.SetVec3("camPos", camera.Position);
-        camera.SetUniformMatrix(blockShader, "camMatrix");
+        chunkShader.Activate();
+        chunkShader.SetVec3("lightPos", lightPos);
+        chunkShader.SetVec4("lightColor", lightColor);
+        // blockShader.Activate();
+        // blockShader.SetVec3("lightPos", lightPos);
+        // blockShader.SetVec4("lightColor", lightColor);
+        // blockShader.SetVec3("camPos", camera.Position);
+        // camera.SetUniformMatrix(blockShader, "camMatrix");
 
         // cubeMesh.Draw(blockShader, camera);
         
