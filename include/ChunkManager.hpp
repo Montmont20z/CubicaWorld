@@ -37,6 +37,17 @@ public:
 
 private:
     
+    // Chunk's destructor deletes GL (VAO/VBO/EBO), which is only legal on the main thread.
+    // A worker thread can end up dropping the last shared_ptr ref to a Chunk
+    // (eg a neighbor ChunkNeighbors temporary going out of scope inside a BuildMesh job
+    // right after the main thread evicts that chunk), so the raw ~Chunk() call must never run there.
+    // This custom deleter defers actual deletion by queuing the raw pointer; DrainPendingDeletes()
+    // (called from Update(), main thread only) does the real 'delete'.
+    std::shared_ptr<Chunk> MakeChunk(ChunkCoord coord);
+    void DrainPendingDeletes();
+    std::vector<Chunk*> pendingDeletes_;
+    std::mutex deleteMutex_;
+    
     // Chunks
     //use std::unique_ptr<Chunk> to allow Chunk load & unload 
     std::unordered_map<ChunkCoord, std::shared_ptr<Chunk>, ChunkCoordHash> chunks_; // for infinite world, but worst cache locality // can be optimise to use hybird hashmap for global, vector for local chunk

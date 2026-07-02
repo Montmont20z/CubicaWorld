@@ -49,9 +49,6 @@ struct ChunkNeighbors {
 
 class Chunk {
 public:
-    // Chunk(std::vector<Vertex> &vertices, std::vector<GLuint> &indices, std::vector<std::unique_ptr<Texture>> &&textures, GLenum usage);
-    // Take ownership of texture. coord identifies world position
-    // Chunk(ChunkCoord coord, std::vector<std::unique_ptr<Texture>> &&textures);
     explicit Chunk(ChunkCoord coord);
     
     // ----------------- Called by worker threads -------------------------

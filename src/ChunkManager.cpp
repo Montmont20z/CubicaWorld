@@ -3,6 +3,7 @@
 #include "Constants.hpp"
 #include <memory>
 #include <mutex>
+#include <vector>
 
 ChunkManager::ChunkManager(int viewDistance)
     : viewDistance_(viewDistance)
@@ -25,6 +26,8 @@ ChunkManager::~ChunkManager()
     }
     workCV_.notify_all(); // wake all worker thread
     for (auto& t: workers_) t.join(); // join individual thread
+    chunks_.clear();  // drop all refs; deleter just queues pointers now, no GL calls yet
+    DrainPendingDeletes(); // actually delete them here, on the main thread
 }
 
 // ---------------------------------------------------------
@@ -70,7 +73,7 @@ void ChunkManager::Update(const glm::vec3 &cameraPos, const Shader &shader, cons
 
                 // Allocate Chunk (no GL yet - happens on Upload if Ready)
                 // auto chunk =  std::make_unique<Chunk>(coord);
-                rawChunk = std::make_shared<Chunk>(coord);
+                rawChunk = MakeChunk(coord);
                 chunks_[coord] = rawChunk;
             }
 
@@ -102,6 +105,7 @@ void ChunkManager::Update(const glm::vec3 &cameraPos, const Shader &shader, cons
             }
         }
     }
+    DrainPendingDeletes(); // safe destructor of Chunk 
 
     // 3. Re-enqueue Dirty chunks for remesh
     {
@@ -189,5 +193,23 @@ ChunkNeighbors ChunkManager::GatherNeighbors(ChunkCoord coord) const
             GetChunk({coord.x, coord.z - 1}),
         };
     }
-    
+}
+
+
+std::shared_ptr<Chunk> ChunkManager::MakeChunk(ChunkCoord coord)
+{
+    return std::shared_ptr<Chunk>(new Chunk(coord), [this](Chunk* c){
+        std::lock_guard lock(deleteMutex_);
+        pendingDeletes_.push_back(c);
+    });
+}
+
+void ChunkManager::DrainPendingDeletes()
+{
+    std::vector<Chunk*> toDelete;
+    {
+        std::lock_guard lock(deleteMutex_);
+        toDelete.swap(pendingDeletes_);
+    }
+    for (Chunk* c: toDelete) delete c;  // ~Chunk() -> ~ChunkMesh() GL deletes: main thread only, safe here
 }

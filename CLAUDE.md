@@ -2,6 +2,9 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Instructions
+Be concise, no explanations unless I ask, no repeated code.
+
 ## Project
 
 CubicaWorld ("cubica") is a Minecraft-clone voxel renderer written in C++17 with modern OpenGL 4.3 (core profile). It is a scoped ~1.5 month learning project — see README.md for the full week-by-week feature roadmap and the explicit "don't even think about" out-of-scope list (mobs, crafting, multiplayer, redstone, biomes, shadows/post-processing).
