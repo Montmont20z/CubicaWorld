@@ -3,7 +3,7 @@ Minecraft-clone
 
 Core:
 C++17 (both repos use this, you're familiar with it)
-Modern OpenGL 3.3+ (core profile, not compatibility)
+Modern OpenGL 4.3+ (core profile, not compatibility)
 GLFW for window/input (lightweight, standard)
 GLEW or GLAD for OpenGL loading (GLAD is simpler)
 GLM for math (vectors, matrices)

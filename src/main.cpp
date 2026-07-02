@@ -42,7 +42,7 @@ int main(){
     }
     glfwSetErrorCallback(errorCallback);
     // set OpenGL version (3.3 Core)
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE); // do not use deprecated functions (eg glBegin, glEnd)
     // TODO: remove this after development
@@ -180,6 +180,13 @@ int main(){
     glDepthFunc(GL_LESS);
     
     float prevTime = static_cast<float>(glfwGetTime());
+    
+    // OpenGL Debug
+    glEnable(GL_DEBUG_OUTPUT);
+    glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
+    glDebugMessageCallback([](GLenum, GLenum, GLuint, GLenum severity, GLsizei, const GLchar* msg, const void*){
+        std::cerr << "GL DEBUG: " << msg << std::endl;
+    }, nullptr);
 
     // main game loop
     while(!glfwWindowShouldClose(window)){
@@ -219,7 +226,7 @@ int main(){
         // lightMesh.Draw(lightShader, camera);
         
         // Loads/unload chunks, drains upload queue, draw everything
-        chunkManager.Update(camera.Position, blockShader, camera);
+        chunkManager.Update(camera.Position, chunkShader, camera);
 
         // swap buffers
         glfwSwapBuffers(window);

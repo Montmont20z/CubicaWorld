@@ -58,3 +58,11 @@ add_custom_command(TARGET cubica POST_BUILD
           $<TARGET_FILE_DIR:cubica>/assets
 )
 # --------------------------------------------------------------------------
+
+# Enable AddressSanitizer for Debug builds
+if(CMAKE_BUILD_TYPE STREQUAL "Debug" OR NOT CMAKE_BUILD_TYPE)
+    message(STATUS "Enabling AddressSanitizer for Debug build")
+    
+    add_compile_options(-fsanitize=address -fno-omit-frame-pointer)
+    add_link_options(-fsanitize=address)
+endif()
