@@ -1,5 +1,6 @@
 #pragma once
 #include <atomic>
+#include <memory>
 #include "Camera.hpp"
 #include "ChunkMesh.hpp"
 #include "BlockType.hpp"
@@ -38,10 +39,10 @@ class Chunk;
 // Neighbors passed to BuildMesh so border faces can be culled correctly.
 // Null = neighbor not loaded; treat as solid (never emit that face)
 struct ChunkNeighbors {
-    const Chunk* px{ nullptr }; // +X
-    const Chunk* nx{ nullptr }; // -X
-    const Chunk* pz{ nullptr }; // +Z
-    const Chunk* nz{ nullptr }; // -Z
+    std::shared_ptr<const Chunk> px;// +X
+    std::shared_ptr<const Chunk> nx; // -X
+    std::shared_ptr<const Chunk> pz; // +Z
+    std::shared_ptr<const Chunk> nz; // -Z
 };
 
 
@@ -87,7 +88,7 @@ private:
     // Flat array: index = x*CHUNK_HEIGHT*CHUNK_SIZE + y*CHUNK_SIZE + z
     std::unique_ptr<BlockType[]> blocks_; // size = CHUNK_SIZE * CHUNK_HEIGH * CHUNK_SIZE // use this instead of std::vector<BlockType> because it is fixed size, has lower memory overhead // not using BlockType[] blocks_; because StackOverFlow 
     BlockType& BlockAt(int x, int y, int z){ return blocks_[x + y * CHUNK_SIZE * CHUNK_SIZE + z * CHUNK_SIZE]; } // this = Chunk*       → non-const overload → returns BlockType& (writable)
-    const BlockType& BlockAt(int x, int y, int z) const { return blocks_[x + y * CHUNK_SIZE * CHUNK_HEIGHT + z * CHUNK_SIZE]; } // this = const Chunk* → const overload     → returns const BlockType& (read-only)
+    const BlockType& BlockAt(int x, int y, int z) const { return blocks_[x + y * CHUNK_SIZE * CHUNK_SIZE + z * CHUNK_SIZE]; } // this = const Chunk* → const overload     → returns const BlockType& (read-only)
 
     ChunkMesh chunkMesh_;                                        // GPU object, main thread only
     std::vector<std::unique_ptr<Texture>> textures_;

@@ -1,8 +1,6 @@
 #include "ChunkManager.hpp"
 #include "Chunk.hpp"
 #include "Constants.hpp"
-#include "Mesh.hpp"
-#include "Texture.hpp"
 #include <memory>
 #include <mutex>
 
@@ -65,15 +63,15 @@ void ChunkManager::Update(const glm::vec3 &cameraPos, const Shader &shader, cons
                 // ... allocate chunk and EnqueueWork here ...
             }
            */
-            Chunk* rawChunk = nullptr;
+            std::shared_ptr<Chunk> rawChunk = nullptr;
             { 
                 std::lock_guard lock(chunksMutex_);
                 if (chunks_.count(coord)) continue; // skip if the chunk already build
 
                 // Allocate Chunk (no GL yet - happens on Upload if Ready)
-                auto chunk =  std::make_unique<Chunk>(coord);
-                rawChunk = chunk.get();
-                chunks_[coord] = std::move(chunk);
+                // auto chunk =  std::make_unique<Chunk>(coord);
+                rawChunk = std::make_shared<Chunk>(coord);
+                chunks_[coord] = rawChunk;
             }
 
             // Push work onto thread pool
@@ -110,9 +108,9 @@ void ChunkManager::Update(const glm::vec3 &cameraPos, const Shader &shader, cons
         std::lock_guard lock(chunksMutex_);
         for (auto& [coord, chunk] : chunks_) {
             if (chunk->State() == ChunkState::Dirty) {
-                Chunk* raw = chunk.get();
-                EnqueueWork([this, raw, coord]() {
-                    raw->BuildMesh(GatherNeighbors(coord));
+                std::shared_ptr<Chunk> sharedChunk = chunk;
+                EnqueueWork([this, sharedChunk, coord]() {
+                    sharedChunk->BuildMesh(GatherNeighbors(coord));
                     {
                         std::lock_guard ul(uploadMutex_);
                         uploadQueue_.push(coord);
@@ -175,9 +173,9 @@ void ChunkManager::EnqueueWork(std::function<void()> fn){
     workCV_.notify_one(); // and notify thread to begin work
 }
 
-const Chunk* ChunkManager::GetChunk(ChunkCoord coord) const {
+std::shared_ptr<const Chunk> ChunkManager::GetChunk(ChunkCoord coord) const {
     auto it = chunks_.find(coord);
-    return it != chunks_.end() ? it->second.get() : nullptr; // get the chunk pointer, if not found nullptr
+    return it != chunks_.end() ? it->second : nullptr; // get the chunk pointer, if not found nullptr
 }
 
 ChunkNeighbors ChunkManager::GatherNeighbors(ChunkCoord coord) const

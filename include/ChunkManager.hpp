@@ -32,14 +32,14 @@ public:
 
 
     void EnqueueWork(std::function<void()> fn);
-    const Chunk* GetChunk(ChunkCoord coord) const;
+    std::shared_ptr<const Chunk> GetChunk(ChunkCoord coord) const;
     ChunkNeighbors GatherNeighbors(ChunkCoord coord) const;
 
 private:
     
     // Chunks
     //use std::unique_ptr<Chunk> to allow Chunk load & unload 
-    std::unordered_map<ChunkCoord, std::unique_ptr<Chunk>, ChunkCoordHash> chunks_; // for infinite world, but worst cache locality // can be optimise to use hybird hashmap for global, vector for local chunk
+    std::unordered_map<ChunkCoord, std::shared_ptr<Chunk>, ChunkCoordHash> chunks_; // for infinite world, but worst cache locality // can be optimise to use hybird hashmap for global, vector for local chunk
     // std::vector<std::unique_ptr<Chunk>> chunks_; // option 2, but only support fixed size world, and no negative index
     mutable std::mutex chunksMutex_;
     
