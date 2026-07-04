@@ -149,10 +149,10 @@ classDiagram
     }
     class C_0004761464329442714065["ChunkNeighbors"]
     class C_0004761464329442714065 {
-        +nx : const Chunk *
-        +nz : const Chunk *
-        +px : const Chunk *
-        +pz : const Chunk *
+        +nx : std::shared_ptr&lt;const Chunk&gt;
+        +nz : std::shared_ptr&lt;const Chunk&gt;
+        +px : std::shared_ptr&lt;const Chunk&gt;
+        +pz : std::shared_ptr&lt;const Chunk&gt;
     }
     class C_0003408262556741368811["Chunk"]
     class C_0003408262556741368811 {
@@ -179,15 +179,19 @@ classDiagram
     class C_0009584862300044083326 {
         +ChunkManager(int viewDistance = 8) void
         +~ChunkManager() void
+        -DrainPendingDeletes() void
         +EnqueueWork(std::function&lt;void &lpar;&rpar;&gt; fn) void
         +GatherNeighbors(ChunkCoord coord) [const] ChunkNeighbors
-        +GetChunk(ChunkCoord coord) [const] const Chunk *
+        +GetChunk(ChunkCoord coord) [const] std::shared_ptr&lt;const Chunk&gt;
+        -MakeChunk(ChunkCoord coord) std::shared_ptr&lt;Chunk&gt;
         +Update(const glm::vec3 & cameraPos, const Shader & shader, const Camera & camera) void
         +WorkerLoop() void
         -blockTexturePath_ : std::string
         -chunksMutex_ : std::mutex
-        -chunks_ : std::unordered_map&lt;ChunkCoord,std::unique_ptr&lt;Chunk&gt;,ChunkCoordHash&gt;
+        -chunks_ : std::unordered_map&lt;ChunkCoord,std::shared_ptr&lt;Chunk&gt;,ChunkCoordHash&gt;
+        -deleteMutex_ : std::mutex
         -maxUploadsPerFrame_ : int
+        -pendingDeletes_ : std::vector&lt;Chunk *&gt;
         -stopping_ : bool
         -uploadMutex_ : std::mutex
         -uploadQueue_ : std::queue&lt;ChunkCoord&gt;
@@ -251,6 +255,7 @@ classDiagram
     C_0009584862300044083326 ..> C_0014899929896336503560 : 
     C_0009584862300044083326 ..> C_0005049148943034209802 : 
     C_0009584862300044083326 ..> C_0004761464329442714065 : 
+    C_0009584862300044083326 --> C_0003408262556741368811 : -pendingDeletes_
     C_0009584862300044083326 o-- C_0001417863006499570610 : -chunks_
     C_0009584862300044083326 o-- C_0003408262556741368811 : -chunks_
     C_0009584862300044083326 o-- C_0001417863006499570610 : -uploadQueue_
