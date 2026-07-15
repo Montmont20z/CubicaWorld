@@ -20,6 +20,12 @@ GLSL — custom shaders
 CMake — build system
 clang-uml — UML class diagram generation from source
 
+# Installation 
+```bash
+sudo apt install libglfw3-dev
+sudo apt install libglm-dev
+```
+
 # Common Commands
 ```bash
 # regenerate mermaid diagram 
