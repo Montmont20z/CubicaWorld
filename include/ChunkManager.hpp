@@ -18,7 +18,7 @@ Do the heavy math on background threads, and do the rendering/GPU uploads exclus
 
 class ChunkManager {
 public:
-    explicit ChunkManager(int viewDistance = 8);
+    explicit ChunkManager(int viewDistance = 8, bool isSingleThreaded = false);
     ~ChunkManager(); // joins worker threads
 
     // Call once per frame on the main thread
@@ -45,6 +45,8 @@ private:
     // (called from Update(), main thread only) does the real 'delete'.
     std::shared_ptr<Chunk> MakeChunk(ChunkCoord coord);
     void DrainPendingDeletes();
+    void UpdateSingleThreaded(const glm::vec3& cameraPos,const Shader& shader, const Camera& camera);
+    void UpdateMultiThreaded(const glm::vec3& cameraPos,const Shader& shader, const Camera& camera);
     std::vector<Chunk*> pendingDeletes_;
     std::mutex deleteMutex_;
     
@@ -69,7 +71,7 @@ private:
     std::mutex                      workMutex_;
     bool                            stopping_{ false };
     
-
+    bool isSingleThreaded_;
     int viewDistance_;
     int maxUploadsPerFrame_ = 4;
 };

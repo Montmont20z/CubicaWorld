@@ -5,15 +5,18 @@
 #include <mutex>
 #include <vector>
 
-ChunkManager::ChunkManager(int viewDistance)
+ChunkManager::ChunkManager(int viewDistance, bool isSingleThreaded)
     : viewDistance_(viewDistance)
     , blockTexturePath_("assets/test.png")
+    , isSingleThreaded_(isSingleThreaded)
 {
     // Spawn threads on initialize
     // Spawn N-1 worker threads (leave one core for main thread)
-    const int numWorkers = std::max(1u, std::thread::hardware_concurrency() - 1); 
-    for (int i = 0; i < numWorkers; ++i){
-       workers_.emplace_back(&ChunkManager::WorkerLoop, this);
+    if (!isSingleThreaded_){ // skip thread initialize if single thread
+        const int numWorkers = std::max(1u, std::thread::hardware_concurrency() - 1); 
+        for (int i = 0; i < numWorkers; ++i){
+           workers_.emplace_back(&ChunkManager::WorkerLoop, this);
+        }
     }
 }
 
@@ -35,6 +38,154 @@ ChunkManager::~ChunkManager()
 
 void ChunkManager::Update(const glm::vec3 &cameraPos, const Shader &shader, const Camera &camera)
 {
+    if (isSingleThreaded_) UpdateSingleThreaded(cameraPos, shader, camera);
+    else                 UpdateMultiThreaded(cameraPos, shader, camera);
+}
+
+void ChunkManager::WorkerLoop()
+{
+    while (true){
+        std::function<void()> fn;
+        {
+            std::unique_lock lock(workMutex_);
+            workCV_.wait(lock, [&]{ return stopping_ || !workQueue_.empty(); }); // only wakes if stopping or something in workQueue
+            if (stopping_ && workQueue_.empty()) return;
+            // steal the work from queue
+            fn = std::move(workQueue_.front()); 
+            workQueue_.pop(); // remove the work from queue
+        }
+        fn(); // execute the work
+    }
+}
+
+void ChunkManager::EnqueueWork(std::function<void()> fn){
+    {
+        std::lock_guard lock(workMutex_);
+        workQueue_.push(std::move(fn)); // push into worker queue
+    }
+    workCV_.notify_one(); // and notify thread to begin work
+}
+
+std::shared_ptr<const Chunk> ChunkManager::GetChunk(ChunkCoord coord) const {
+    auto it = chunks_.find(coord);
+    return it != chunks_.end() ? it->second : nullptr; // get the chunk pointer, if not found nullptr
+}
+
+ChunkNeighbors ChunkManager::GatherNeighbors(ChunkCoord coord) const
+{
+    {
+        std::lock_guard lock(chunksMutex_);
+        return {
+            GetChunk({coord.x + 1, coord.z}),
+            GetChunk({coord.x - 1, coord.z}),
+            GetChunk({coord.x, coord.z + 1}),
+            GetChunk({coord.x, coord.z - 1}),
+        };
+    }
+}
+
+
+std::shared_ptr<Chunk> ChunkManager::MakeChunk(ChunkCoord coord)
+{
+    return std::shared_ptr<Chunk>(new Chunk(coord), [this](Chunk* c){
+        std::lock_guard lock(deleteMutex_);
+        pendingDeletes_.push_back(c);
+    });
+}
+
+void ChunkManager::DrainPendingDeletes()
+{
+    std::vector<Chunk*> toDelete;
+    {
+        std::lock_guard lock(deleteMutex_);
+        toDelete.swap(pendingDeletes_);
+    }
+    for (Chunk* c: toDelete) delete c;  // ~Chunk() -> ~ChunkMesh() GL deletes: main thread only, safe here
+}
+
+void ChunkManager::UpdateSingleThreaded(const glm::vec3& cameraPos,const Shader& shader, const Camera& camera){
+    
+    const int camChunkX = static_cast<int>(std::floor(cameraPos.x / CHUNK_SIZE));
+    const int camChunkZ = static_cast<int>(std::floor(cameraPos.z / CHUNK_SIZE));
+
+    // 1. Load Chunk that should exsist but dont
+    for (int dx = -viewDistance_; dx <= viewDistance_; ++dx){
+       for (int dz = -viewDistance_; dz <= viewDistance_; ++dz) {
+           ChunkCoord coord{ camChunkX + dx, camChunkZ + dz  };
+           
+
+           /* Implement Spiral Outward Chunk loading order
+           std::vector<ChunkCoord> loadQueue;
+
+            for (int dx = -viewDistance_; dx <= viewDistance_; ++dx) {
+                for (int dz = -viewDistance_; dz <= viewDistance_; ++dz) {
+                    loadQueue.push_back({ camChunkX + dx, camChunkZ + dz });
+                }
+            }
+
+            // Sort so chunks closest to the camera are at the FRONT of the vector
+            std::sort(loadQueue.begin(), loadQueue.end(), [camChunkX, camChunkZ](const ChunkCoord& a, const ChunkCoord& b) {
+                int distA = (a.x - camChunkX) * (a.x - camChunkX) + (a.z - camChunkZ) * (a.z - camChunkZ);
+                int distB = (b.x - camChunkX) * (b.x - camChunkX) + (b.z - camChunkZ) * (b.z - camChunkZ);
+                return distA < distB; 
+            });
+
+            // Now loop through your sorted queue to insert and EnqueueWork!
+            for (const auto& coord : loadQueue) {
+                if (chunks_.count(coord)) continue;
+                // ... allocate chunk and EnqueueWork here ...
+            }
+           */
+            std::shared_ptr<Chunk> rawChunk = nullptr;
+            { 
+                std::lock_guard lock(chunksMutex_);
+                if (chunks_.count(coord)) continue; // skip if the chunk already build
+
+                // Allocate Chunk (no GL yet - happens on Upload if Ready)
+                // auto chunk =  std::make_unique<Chunk>(coord);
+                rawChunk = MakeChunk(coord);
+                chunks_[coord] = rawChunk;
+            }
+
+            // single thread draw chunk
+            rawChunk->Generate();
+            rawChunk->BuildMesh(GatherNeighbors(coord));
+            rawChunk->UploadIfReady(); // upload Mesh to GPU
+       }
+    }
+
+    // Single thread remesh & render
+    // 2. Unload Chunk outside view distance + a small buffer
+    // iterate through all chunks
+    const int unloadDist = viewDistance_ + 2;
+    for (auto it = chunks_.begin(); it != chunks_.end(); ){
+       if (
+        std::abs(it->first.x - camChunkX) >= unloadDist ||
+        std::abs(it->first.z - camChunkZ) >= unloadDist
+       ){
+        it = chunks_.erase(it);
+       } else {
+        ++it;
+       } 
+    }
+    DrainPendingDeletes(); // destructor of Chunk 
+
+    // 3. Remesh Dirty chunks
+    for (auto& [coord, chunk ]: chunks_){
+       if (chunk->State() == ChunkState::Dirty){
+           chunk->BuildMesh(GatherNeighbors(coord));
+           chunk->UploadIfReady(); // push dirty mesh to GPU
+       } 
+    }
+
+    // 4. Draw all chunk
+    for (auto& [coord, chunk]: chunks_){
+        chunk->Render(shader, camera);
+    }
+}
+
+void ChunkManager::UpdateMultiThreaded(const glm::vec3& cameraPos,const Shader& shader, const Camera& camera){
+    
     const int camChunkX = static_cast<int>(std::floor(cameraPos.x / CHUNK_SIZE));
     const int camChunkZ = static_cast<int>(std::floor(cameraPos.z / CHUNK_SIZE));
 
@@ -86,7 +237,6 @@ void ChunkManager::Update(const glm::vec3 &cameraPos, const Shader &shader, cons
                         uploadQueue_.push(coord);
                     }
             });
-            
        }
     }
 
@@ -151,65 +301,4 @@ void ChunkManager::Update(const glm::vec3 &cameraPos, const Shader &shader, cons
         }
 
     }
-}
-
-void ChunkManager::WorkerLoop()
-{
-    while (true){
-        std::function<void()> fn;
-        {
-            std::unique_lock lock(workMutex_);
-            workCV_.wait(lock, [&]{ return stopping_ || !workQueue_.empty(); }); // only wakes if stopping or something in workQueue
-            if (stopping_ && workQueue_.empty()) return;
-            // steal the work from queue
-            fn = std::move(workQueue_.front()); 
-            workQueue_.pop(); // remove the work from queue
-        }
-        fn(); // execute the work
-    }
-}
-
-void ChunkManager::EnqueueWork(std::function<void()> fn){
-    {
-        std::lock_guard lock(workMutex_);
-        workQueue_.push(std::move(fn)); // push into worker queue
-    }
-    workCV_.notify_one(); // and notify thread to begin work
-}
-
-std::shared_ptr<const Chunk> ChunkManager::GetChunk(ChunkCoord coord) const {
-    auto it = chunks_.find(coord);
-    return it != chunks_.end() ? it->second : nullptr; // get the chunk pointer, if not found nullptr
-}
-
-ChunkNeighbors ChunkManager::GatherNeighbors(ChunkCoord coord) const
-{
-    {
-        std::lock_guard lock(chunksMutex_);
-        return {
-            GetChunk({coord.x + 1, coord.z}),
-            GetChunk({coord.x - 1, coord.z}),
-            GetChunk({coord.x, coord.z + 1}),
-            GetChunk({coord.x, coord.z - 1}),
-        };
-    }
-}
-
-
-std::shared_ptr<Chunk> ChunkManager::MakeChunk(ChunkCoord coord)
-{
-    return std::shared_ptr<Chunk>(new Chunk(coord), [this](Chunk* c){
-        std::lock_guard lock(deleteMutex_);
-        pendingDeletes_.push_back(c);
-    });
-}
-
-void ChunkManager::DrainPendingDeletes()
-{
-    std::vector<Chunk*> toDelete;
-    {
-        std::lock_guard lock(deleteMutex_);
-        toDelete.swap(pendingDeletes_);
-    }
-    for (Chunk* c: toDelete) delete c;  // ~Chunk() -> ~ChunkMesh() GL deletes: main thread only, safe here
 }

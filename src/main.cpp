@@ -48,61 +48,6 @@ int main(){
     // TODO: remove this after development
     glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GLFW_TRUE);
 
-    std::vector<Vertex> vertices = {
-        // Position                Normal                  Color                   TexCoords
-        // Bottom (y = 0) - outward normal (0,-1,0)
-        {{-0.5f, 0.0f,  0.5f}, { 0.0f,-1.0f, 0.0f}, {1.0f,1.0f,1.0f}, {0.0f,0.0f}}, // 0
-        {{-0.5f, 0.0f, -0.5f}, { 0.0f,-1.0f, 0.0f}, {1.0f,1.0f,1.0f}, {1.0f,0.0f}}, // 1
-        {{ 0.5f, 0.0f, -0.5f}, { 0.0f,-1.0f, 0.0f}, {1.0f,1.0f,1.0f}, {1.0f,1.0f}}, // 2
-        {{ 0.5f, 0.0f,  0.5f}, { 0.0f,-1.0f, 0.0f}, {1.0f,1.0f,1.0f}, {0.0f,1.0f}}, // 3
-
-        // Top (y = 1) - outward normal (0,1,0)
-        {{ 0.5f, 1.0f,  0.5f}, { 0.0f, 1.0f, 0.0f}, {1.0f,1.0f,1.0f}, {0.0f,0.0f}}, // 4
-        {{ 0.5f, 1.0f, -0.5f}, { 0.0f, 1.0f, 0.0f}, {1.0f,1.0f,1.0f}, {1.0f,0.0f}}, // 5
-        {{-0.5f, 1.0f, -0.5f}, { 0.0f, 1.0f, 0.0f}, {1.0f,1.0f,1.0f}, {1.0f,1.0f}}, // 6
-        {{-0.5f, 1.0f,  0.5f}, { 0.0f, 1.0f, 0.0f}, {1.0f,1.0f,1.0f}, {0.0f,1.0f}}, // 7
-
-        // Left (x = -0.5) - outward normal (-1,0,0)
-        {{-0.5f, 0.0f,  0.5f}, {-1.0f, 0.0f, 0.0f}, {1.0f,1.0f,1.0f}, {0.0f,0.0f}}, // 8
-        {{-0.5f, 0.0f, -0.5f}, {-1.0f, 0.0f, 0.0f}, {1.0f,1.0f,1.0f}, {1.0f,0.0f}}, // 9
-        {{-0.5f, 1.0f, -0.5f}, {-1.0f, 0.0f, 0.0f}, {1.0f,1.0f,1.0f}, {1.0f,1.0f}}, //10
-        {{-0.5f, 1.0f,  0.5f}, {-1.0f, 0.0f, 0.0f}, {1.0f,1.0f,1.0f}, {0.0f,1.0f}}, //11
-
-        // Right (x = +0.5) - outward normal (1,0,0)
-        {{ 0.5f, 0.0f, -0.5f}, { 1.0f, 0.0f, 0.0f}, {1.0f,1.0f,1.0f}, {0.0f,0.0f}}, //12
-        {{ 0.5f, 0.0f,  0.5f}, { 1.0f, 0.0f, 0.0f}, {1.0f,1.0f,1.0f}, {1.0f,0.0f}}, //13
-        {{ 0.5f, 1.0f,  0.5f}, { 1.0f, 0.0f, 0.0f}, {1.0f,1.0f,1.0f}, {1.0f,1.0f}}, //14
-        {{ 0.5f, 1.0f, -0.5f}, { 1.0f, 0.0f, 0.0f}, {1.0f,1.0f,1.0f}, {0.0f,1.0f}}, //15
-
-        // Front (z = +0.5) - outward normal (0,0,1)
-        {{-0.5f, 0.0f,  0.5f}, { 0.0f, 0.0f, 1.0f}, {1.0f,1.0f,1.0f}, {0.0f,0.0f}}, //16
-        {{ 0.5f, 0.0f,  0.5f}, { 0.0f, 0.0f, 1.0f}, {1.0f,1.0f,1.0f}, {1.0f,0.0f}}, //17
-        {{ 0.5f, 1.0f,  0.5f}, { 0.0f, 0.0f, 1.0f}, {1.0f,1.0f,1.0f}, {1.0f,1.0f}}, //18
-        {{-0.5f, 1.0f,  0.5f}, { 0.0f, 0.0f, 1.0f}, {1.0f,1.0f,1.0f}, {0.0f,1.0f}}, //19
-
-        // Back (z = -0.5) - outward normal (0,0,-1)
-        {{-0.5f, 0.0f, -0.5f}, { 0.0f, 0.0f,-1.0f}, {1.0f,1.0f,1.0f}, {0.0f,0.0f}}, //20
-        {{ 0.5f, 0.0f, -0.5f}, { 0.0f, 0.0f,-1.0f}, {1.0f,1.0f,1.0f}, {1.0f,0.0f}}, //21
-        {{ 0.5f, 1.0f, -0.5f}, { 0.0f, 0.0f,-1.0f}, {1.0f,1.0f,1.0f}, {1.0f,1.0f}}, //22
-        {{-0.5f, 1.0f, -0.5f}, { 0.0f, 0.0f,-1.0f}, {1.0f,1.0f,1.0f}, {0.0f,1.0f}}, //23
-    };
-
-    std::vector<GLuint> vertexIndices = {
-        // Bottom
-        0,1,2,  2,3,0,
-        // Left
-        8,9,10, 8,10,11,
-        // Right
-        12,13,14, 15,12,14,
-        // Top
-        4,5,6, 4,7,6,
-        // Front
-        16,17,18, 16,18,19,
-        // Back
-        20,21,22, 20,22,23
-    };
-
-    
     std::vector<Vertex> lightVertices = {
         // Position              Normal (unused)       Color (unused)        TexCoord (unused)
         {{-0.1f, -0.1f,  0.1f}, {0.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f}},
@@ -130,7 +75,7 @@ int main(){
     };
     
     // create texture array
-    std::vector<std::unique_ptr<Texture>> textures;
+    // std::vector<std::unique_ptr<Texture>> textures;
     std::vector<std::unique_ptr<Texture>> emptyTextures; // No textures for light
 
     // create the window
@@ -148,8 +93,7 @@ int main(){
         return -1;
     }
     
-    // Enable V-sync
-    glfwSwapInterval(1);
+    glfwSwapInterval(1); // Enable V-sync
 
     glViewport(0,0, screenWidth, screenHeight); // Maps normalized device coordinates (NDC, range [-1,1]) to window pixels. // need to change Screen width & height if resize window
     
@@ -157,7 +101,7 @@ int main(){
     Shader lightShader("shaders/light.vert.glsl", "shaders/light.frag.glsl");
     Shader chunkShader("shaders/chunk.vert.glsl", "shaders/chunk.frag.glsl");
     
-    ChunkManager chunkManager(8);
+    ChunkManager chunkManager(8, false);
 
     glm::vec4 lightColor = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
     glm::vec3 lightPos = glm::vec3(1.5f, 0.5f, 0.0f);
@@ -165,10 +109,10 @@ int main(){
     lightModel = glm::translate(lightModel, lightPos);
 
     // Texture
-    std::unique_ptr popCatTexture = std::make_unique<Texture>("assets/pop-cat.jpg", GL_TEXTURE_2D, GL_TEXTURE0, GL_RGB, GL_UNSIGNED_BYTE);
-    textures.push_back(std::move(popCatTexture));
+    // std::unique_ptr popCatTexture = std::make_unique<Texture>("assets/pop-cat.jpg", GL_TEXTURE_2D, GL_TEXTURE0, GL_RGB, GL_UNSIGNED_BYTE);
+    // textures.push_back(std::move(popCatTexture));
     
-    Camera camera(screenWidth, screenHeight, glm::vec3(0.0f, 90.0f, 2.0f));
+    Camera camera(screenWidth, screenHeight, glm::vec3(1.0f, 68.0f, -1.0f));
     // set user pointer and callback
     glfwSetWindowUserPointer(window, &camera);
     glfwSetFramebufferSizeCallback(window, frameBufferCallback);
