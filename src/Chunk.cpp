@@ -6,6 +6,7 @@
 
 #include <atomic>
 #include <cassert>
+#include <cstdint>
 #include <glm/fwd.hpp>
 #include <glm/gtx/transform.hpp>
 #include <memory>
@@ -103,7 +104,7 @@ void Chunk::BuildMesh(const ChunkNeighbors& neighbors){
         return neighbor->GetBlock(nx, y, nz) == BlockType::Air;
     };
     
-    auto appendFace = [](const ChunkVertex face[4], int bx, int by, int bz,
+    auto appendFace = [](const ChunkVertex face[4],uint8_t tile, int bx, int by, int bz,
                                     std::vector<ChunkVertex>& verts, std::vector<GLuint>& idxs)
     {
         const auto base = static_cast<GLuint>(verts.size());     
@@ -114,6 +115,7 @@ void Chunk::BuildMesh(const ChunkNeighbors& neighbors){
         for (int i = 0; i < 4; ++i) {
             ChunkVertex v = face[i];
             v.position += offset;
+            v.texLayer = tile; // numbers for specific blockType
             verts.push_back(v);
         }
         // Two CCW triangles: 0-1-2, 2-3-0
@@ -124,18 +126,20 @@ void Chunk::BuildMesh(const ChunkNeighbors& neighbors){
     MeshData data;
     data.vertices.reserve(4096);
     data.indices.reserve(6144);
+    // Temporary hardcoded tiles (index = row*16 + col, see note below)
+    constexpr uint8_t TILE_TOP = 0, TILE_SIDE = 1, TILE_BOTTOM = 2;
     
     for (int x = 0; x < CHUNK_SIZE; ++x) {
         for (int y = 0; y < CHUNK_HEIGHT; ++y) {
             for (int z = 0; z < CHUNK_SIZE; ++z) {
                 if (BlockAt(x, y, z) == BlockType::Air) continue;
                 // Add face to mesh
-                if (isAir(x+1, y, z)) appendFace(RIGHT_FACE,  x,y,z, data.vertices, data.indices);
-                if (isAir(x-1, y, z)) appendFace(LEFT_FACE, x, y, z, data.vertices, data.indices);
-                if (isAir(x, y+1, z)) appendFace(TOP_FACE, x, y, z, data.vertices, data.indices);
-                if (isAir(x, y-1, z)) appendFace(BOTTOM_FACE, x, y, z, data.vertices, data.indices);
-                if (isAir(x, y, z+1)) appendFace(FRONT_FACE, x, y, z, data.vertices, data.indices);
-                if (isAir(x, y, z-1)) appendFace(BACK_FACE, x, y, z, data.vertices, data.indices);
+                if (isAir(x+1, y, z)) appendFace(RIGHT_FACE, TILE_SIDE,  x,y,z, data.vertices, data.indices);
+                if (isAir(x-1, y, z)) appendFace(LEFT_FACE, TILE_SIDE, x, y, z, data.vertices, data.indices);
+                if (isAir(x, y+1, z)) appendFace(TOP_FACE,TILE_TOP, x, y, z, data.vertices, data.indices);
+                if (isAir(x, y-1, z)) appendFace(BOTTOM_FACE, TILE_BOTTOM, x, y, z, data.vertices, data.indices);
+                if (isAir(x, y, z+1)) appendFace(FRONT_FACE, TILE_SIDE, x, y, z, data.vertices, data.indices);
+                if (isAir(x, y, z-1)) appendFace(BACK_FACE, TILE_SIDE, x, y, z, data.vertices, data.indices);
             }
         }
     

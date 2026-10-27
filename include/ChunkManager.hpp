@@ -62,7 +62,6 @@ private:
     // -- Upload queue: worker pushes coord, main thread drains --
     std::queue<ChunkCoord> uploadQueue_;
     std::mutex uploadMutex_; 
-
     
     // -- Thread pool --
     std::vector<std::thread>        workers_;

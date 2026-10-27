@@ -1,9 +1,10 @@
 #include "Texture.hpp"
+#include "Camera.hpp"
 #include <string>
 #include <stb/stb_image.h>
 #include <iostream>
 
-Texture::Texture(const std::string& path, GLenum texType, GLenum slot, GLenum format, GLenum pixelType )
+Texture::Texture(const std::string& path, GLenum texType, GLenum slot, GLenum pixelType )
     : type_(texType)
 {
     int widthImg, heightImg, numColCh;
@@ -23,13 +24,15 @@ Texture::Texture(const std::string& path, GLenum texType, GLenum slot, GLenum fo
     // Axis from x,y,z to s,t,r
     // s,t,r -> GL_TEXTURE_WRAP_S, GL_TEXTURE_WRAP_T, GL_TEXTURE_WRAP_R
     // Options for last param (GL_REPEAT, GL_MIRROR_REPEAT, GL_CAMP_TO_EDGE, GL_CAMP_TO_BORDER)
-    glTexParameteri(type_, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(type_, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(type_, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(type_, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     
     // For GL_CAMP_TO_BORDER
     // float flatColor[] = {1.0f,1.0f,1.0f,1.0f};
     // glTexParameterfv(type, GL_TEXTURE_BORDER_COLOR, flatColor); 
-    glTexImage2D(type_, 0, format, widthImg, heightImg, 0, format, pixelType, bytes);
+    GLenum fmt = (numColCh == 4) ? GL_RGBA : (numColCh == 1) ? GL_RED : GL_RGB;
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+    glTexImage2D(type_, 0, fmt, widthImg, heightImg, 0, fmt, pixelType, bytes);
     glGenerateMipmap(type_);
 
     glBindTexture(type_, 0);

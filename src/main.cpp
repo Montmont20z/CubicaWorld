@@ -97,8 +97,8 @@ int main(){
 
     glViewport(0,0, screenWidth, screenHeight); // Maps normalized device coordinates (NDC, range [-1,1]) to window pixels. // need to change Screen width & height if resize window
     
-    Shader blockShader("shaders/basic.vert.glsl", "shaders/basic.frag.glsl");
-    Shader lightShader("shaders/light.vert.glsl", "shaders/light.frag.glsl");
+    // Shader blockShader("shaders/basic.vert.glsl", "shaders/basic.frag.glsl");
+    // Shader lightShader("shaders/light.vert.glsl", "shaders/light.frag.glsl");
     Shader chunkShader("shaders/chunk.vert.glsl", "shaders/chunk.frag.glsl");
     
     ChunkManager chunkManager(8, false);
@@ -111,6 +111,11 @@ int main(){
     // Texture
     // std::unique_ptr popCatTexture = std::make_unique<Texture>("assets/pop-cat.jpg", GL_TEXTURE_2D, GL_TEXTURE0, GL_RGB, GL_UNSIGNED_BYTE);
     // textures.push_back(std::move(popCatTexture));
+    std::unique_ptr textureAtlas = std::make_unique<Texture>("assets/DefaultPack.png", GL_TEXTURE_2D, GL_TEXTURE0, GL_UNSIGNED_BYTE);
+    textureAtlas->Bind(0);
+    chunkShader.Activate();
+    glUniform1i(glGetUniformLocation(chunkShader.ID, "atlasTiles"), 16);
+    chunkShader.AttachTextureUnit(0, "tex0");
     
     Camera camera(screenWidth, screenHeight, glm::vec3(1.0f, 68.0f, -1.0f));
     // set user pointer and callback
