@@ -9,4 +9,7 @@ enum class BlockType : uint8_t {
     Log,
     Leaf,
     Sand,
+    Flower,
+    ShortGrass,
+    DeadBush,
 };

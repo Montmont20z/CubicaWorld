@@ -14,9 +14,12 @@ inline constexpr BlockTiles kBlockTiles[] = {
     /* Log   */ { 5, 5, 4 },
     /* Leaf  */ { 6,6, 6 },
     /* Sand  */ { 7, 7, 7 },
+    /* Flower */ { 8, 8, 8 },
+    /* ShortGrass */ { 9,9, 9 },
+    /* DeadBush */ { 10,10,10},
 };
 
-static_assert(sizeof(kBlockTiles) / sizeof(kBlockTiles[0]) == static_cast<size_t>(BlockType::Sand),
+static_assert(sizeof(kBlockTiles) / sizeof(kBlockTiles[0]) == static_cast<size_t>(BlockType::DeadBush),
                 "kBlockTiles must consist each BlockType");
 
 
