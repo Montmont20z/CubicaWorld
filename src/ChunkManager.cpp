@@ -7,7 +7,6 @@
 
 ChunkManager::ChunkManager(int viewDistance, bool isSingleThreaded)
     : viewDistance_(viewDistance)
-    , blockTexturePath_("assets/test.png")
     , isSingleThreaded_(isSingleThreaded)
 {
     // Spawn threads on initialize

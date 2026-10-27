@@ -1,4 +1,5 @@
 #include "Chunk.hpp"
+#include "BlockTexture.hpp"
 #include "BlockType.hpp"
 #include "Constants.hpp"
 #include "MeshData.hpp"
@@ -68,10 +69,17 @@ void Chunk::Generate(){
     for (int x = 0; x < CHUNK_SIZE; ++x) {
         for (int y = 0; y < CHUNK_HEIGHT; ++y) {
             for (int z = 0; z < CHUNK_SIZE; ++z) {
-                BlockAt(x,y,z) = (y < SURFACE_Y) ? BlockType::Dirt : BlockType::Air;
+                BlockAt(x,y,z) = (y <= SURFACE_Y) ? BlockType::Dirt : BlockType::Air;
             }
         }
     }
+    BlockAt(0, SURFACE_Y, 0) = BlockType::Sand;
+    BlockAt(0, 70, -2) = BlockType::Grass;
+    BlockAt(1, 64, 0) = BlockType::Stone;
+    BlockAt(2, 65, 0) = BlockType::Log;
+    BlockAt(3, 64, 0) = BlockType::Leaf;
+    // found a few bugs. It seems like the world coordinates is not unique globally. The sand on 0, 64, 0 repeat across different chunk, not just one chunk 
+    // when use negative x, z value the y coordinate seems to decrease by 1, eg x: -2, the y = 67 , the actual y will be 66
     state_.store(ChunkState::Generated, std::memory_order_release); 
 }
 
@@ -132,14 +140,15 @@ void Chunk::BuildMesh(const ChunkNeighbors& neighbors){
     for (int x = 0; x < CHUNK_SIZE; ++x) {
         for (int y = 0; y < CHUNK_HEIGHT; ++y) {
             for (int z = 0; z < CHUNK_SIZE; ++z) {
-                if (BlockAt(x, y, z) == BlockType::Air) continue;
+                const BlockType b = BlockAt(x,y,z);
+                if (b == BlockType::Air) continue;
                 // Add face to mesh
-                if (isAir(x+1, y, z)) appendFace(RIGHT_FACE, TILE_SIDE,  x,y,z, data.vertices, data.indices);
-                if (isAir(x-1, y, z)) appendFace(LEFT_FACE, TILE_SIDE, x, y, z, data.vertices, data.indices);
-                if (isAir(x, y+1, z)) appendFace(TOP_FACE,TILE_TOP, x, y, z, data.vertices, data.indices);
-                if (isAir(x, y-1, z)) appendFace(BOTTOM_FACE, TILE_BOTTOM, x, y, z, data.vertices, data.indices);
-                if (isAir(x, y, z+1)) appendFace(FRONT_FACE, TILE_SIDE, x, y, z, data.vertices, data.indices);
-                if (isAir(x, y, z-1)) appendFace(BACK_FACE, TILE_SIDE, x, y, z, data.vertices, data.indices);
+                if (isAir(x+1, y, z)) appendFace(RIGHT_FACE, TileFor(b, Face::Right),  x,y,z, data.vertices, data.indices);
+                if (isAir(x-1, y, z)) appendFace(LEFT_FACE, TileFor(b, Face::Left), x, y, z, data.vertices, data.indices);
+                if (isAir(x, y+1, z)) appendFace(TOP_FACE,TileFor(b, Face::Top), x, y, z, data.vertices, data.indices);
+                if (isAir(x, y-1, z)) appendFace(BOTTOM_FACE, TileFor(b, Face::Bottom), x, y, z, data.vertices, data.indices);
+                if (isAir(x, y, z+1)) appendFace(FRONT_FACE,TileFor(b, Face::Front),  x, y, z, data.vertices, data.indices);
+                if (isAir(x, y, z-1)) appendFace(BACK_FACE, TileFor(b, Face::Back), x, y, z, data.vertices, data.indices);
             }
         }
     

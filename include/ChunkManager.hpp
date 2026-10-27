@@ -56,9 +56,6 @@ private:
     // std::vector<std::unique_ptr<Chunk>> chunks_; // option 2, but only support fixed size world, and no negative index
     mutable std::mutex chunksMutex_;
     
-    /// TODO: replace with shared TextureManager + GL_TEXTURE_2D_ARRAY before greedy meshing.
-    std::string blockTexturePath_;
-    
     // -- Upload queue: worker pushes coord, main thread drains --
     std::queue<ChunkCoord> uploadQueue_;
     std::mutex uploadMutex_; 

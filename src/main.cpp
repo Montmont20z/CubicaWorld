@@ -109,8 +109,6 @@ int main(){
     lightModel = glm::translate(lightModel, lightPos);
 
     // Texture
-    // std::unique_ptr popCatTexture = std::make_unique<Texture>("assets/pop-cat.jpg", GL_TEXTURE_2D, GL_TEXTURE0, GL_RGB, GL_UNSIGNED_BYTE);
-    // textures.push_back(std::move(popCatTexture));
     std::unique_ptr textureAtlas = std::make_unique<Texture>("assets/DefaultPack.png", GL_TEXTURE_2D, GL_TEXTURE0, GL_UNSIGNED_BYTE);
     textureAtlas->Bind(0);
     chunkShader.Activate();
