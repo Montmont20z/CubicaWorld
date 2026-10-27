@@ -14,9 +14,11 @@ inline constexpr BlockTiles kBlockTiles[] = {
     /* Log   */ { 5, 5, 4 },
     /* Leaf  */ { 6,6, 6 },
     /* Sand  */ { 7, 7, 7 },
-    /* Flower */ { 8, 8, 8 },
-    /* ShortGrass */ { 9,9, 9 },
-    /* DeadBush */ { 10,10,10},
+    /* Water */ { 8, 8, 8 },
+    /* Cactus */ { 9, 9, 9 },
+    /* Flower */ { 10, 10, 10 },
+    /* ShortGrass */ { 11,11, 11 },
+    /* DeadBush */ { 12,12,12},
 };
 
 static_assert(sizeof(kBlockTiles) / sizeof(kBlockTiles[0]) == static_cast<size_t>(BlockType::DeadBush),
