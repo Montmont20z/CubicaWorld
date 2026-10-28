@@ -7,6 +7,8 @@
 
 #include <atomic>
 #include <cassert>
+#include <cmath>
+#include <cstddef>
 #include <cstdint>
 #include <glm/fwd.hpp>
 #include <glm/gtx/transform.hpp>
@@ -65,21 +67,28 @@ Chunk::Chunk(ChunkCoord coord)
 void Chunk::Generate(){
     // Flat terrain placeholder - swap in Perlin noise later.
     // Everything below y=64 is Dirt; above is Air.
-    constexpr int SURFACE_Y = 64;
     for (int x = 0; x < CHUNK_SIZE; ++x) {
         for (int y = 0; y < CHUNK_HEIGHT; ++y) {
             for (int z = 0; z < CHUNK_SIZE; ++z) {
-                BlockAt(x,y,z) = (y <= SURFACE_Y) ? BlockType::Dirt : BlockType::Air;
+                BlockAt(x,y,z) = BlockType::Air;
             }
         }
     }
-    BlockAt(0, SURFACE_Y, 0) = BlockType::Sand;
-    BlockAt(0, 70, -2) = BlockType::Grass;
-    BlockAt(1, 64, 0) = BlockType::Stone;
-    BlockAt(2, 65, 0) = BlockType::Log;
-    BlockAt(3, 64, 0) = BlockType::Leaf;
-    // found a few bugs. It seems like the world coordinates is not unique globally. The sand on 0, 64, 0 repeat across different chunk, not just one chunk 
-    // when use negative x, z value the y coordinate seems to decrease by 1, eg x: -2, the y = 67 , the actual y will be 66
+
+    for (int x = 0; x < CHUNK_SIZE; ++x) {
+        for (int y = 0; y < CHUNK_HEIGHT; ++y) {
+            for (int z = 0; z < CHUNK_SIZE; ++z) {
+                int surfaceY = static_cast<int>(std::sin(x * 0.2f) * 5.0f) + SURFACE_Y;
+                BlockAt(x,surfaceY, z) = BlockType::Stone;
+            }
+        }
+    }
+    // BlockAt(0, SURFACE_Y, 0) = BlockType::Sand;
+    // BlockAt(0, 70, 14) = BlockType::Grass;
+    // BlockAt(0, 70, 1) = BlockType::Stone;
+    // BlockAt(1, 64, 0) = BlockType::Stone;
+    // BlockAt(2, 65, 0) = BlockType::Log;
+    // BlockAt(3, 64, 0) = BlockType::Leaf;
     state_.store(ChunkState::Generated, std::memory_order_release); 
 }
 
@@ -154,7 +163,8 @@ void Chunk::BuildMesh(const ChunkNeighbors& neighbors){
     
     }
     pendingMesh_ = std::move(data);
-    state_.store(ChunkState::MeshReady, std::memory_order_release); 
+    auto expected = ChunkState::Generated;
+    state_.compare_exchange_strong(expected, ChunkState::MeshReady, std::memory_order_acq_rel); // If it fails, someone set Dirty mid-build. Leave it alone; next frame remeshes.
 }
 
  
