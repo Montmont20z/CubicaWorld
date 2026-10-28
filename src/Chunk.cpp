@@ -4,11 +4,11 @@
 #include "Constants.hpp"
 #include "MeshData.hpp"
 #include "ChunkMesh.hpp"
+#include "RenderSettings.hpp"
 
 #include <atomic>
 #include <cassert>
 #include <cmath>
-#include <cstddef>
 #include <cstdint>
 #include <glm/fwd.hpp>
 #include <glm/gtx/transform.hpp>
@@ -70,7 +70,8 @@ void Chunk::Generate(){
     for (int x = 0; x < CHUNK_SIZE; ++x) {
         for (int y = 0; y < CHUNK_HEIGHT; ++y) {
             for (int z = 0; z < CHUNK_SIZE; ++z) {
-                BlockAt(x,y,z) = BlockType::Air;
+                // BlockAt(x,y,z) = BlockType::Air;
+                BlockAt(x,y,z) = (y <= SURFACE_Y) ? BlockType::Dirt : BlockType::Air;
             }
         }
     }
@@ -78,8 +79,8 @@ void Chunk::Generate(){
     for (int x = 0; x < CHUNK_SIZE; ++x) {
         for (int y = 0; y < CHUNK_HEIGHT; ++y) {
             for (int z = 0; z < CHUNK_SIZE; ++z) {
-                int surfaceY = static_cast<int>(std::sin(x * 0.2f) * 5.0f) + SURFACE_Y;
-                BlockAt(x,surfaceY, z) = BlockType::Stone;
+                // int surfaceY = static_cast<int>(std::sin(x * 0.2f) * 5.0f) + SURFACE_Y;
+                // BlockAt(x,surfaceY, z) = BlockType::Stone;
             }
         }
     }
@@ -154,12 +155,23 @@ void Chunk::BuildMesh(const ChunkNeighbors& neighbors){
                 const BlockType b = BlockAt(x,y,z);
                 if (b == BlockType::Air) continue;
                 // Add face to mesh
-                if (isAir(x+1, y, z)) appendFace(RIGHT_FACE, TileFor(b, Face::Right),  x,y,z, data.vertices, data.indices);
-                if (isAir(x-1, y, z)) appendFace(LEFT_FACE, TileFor(b, Face::Left), x, y, z, data.vertices, data.indices);
-                if (isAir(x, y+1, z)) appendFace(TOP_FACE,TileFor(b, Face::Top), x, y, z, data.vertices, data.indices);
-                if (isAir(x, y-1, z)) appendFace(BOTTOM_FACE, TileFor(b, Face::Bottom), x, y, z, data.vertices, data.indices);
-                if (isAir(x, y, z+1)) appendFace(FRONT_FACE,TileFor(b, Face::Front),  x, y, z, data.vertices, data.indices);
-                if (isAir(x, y, z-1)) appendFace(BACK_FACE, TileFor(b, Face::Back), x, y, z, data.vertices, data.indices);
+                if (FACE_CULLING){
+                    if (isAir(x+1, y, z)) appendFace(RIGHT_FACE, TileFor(b, Face::Right),  x,y,z, data.vertices, data.indices);
+                    if (isAir(x-1, y, z)) appendFace(LEFT_FACE, TileFor(b, Face::Left), x, y, z, data.vertices, data.indices);
+                    if (isAir(x, y+1, z)) appendFace(TOP_FACE,TileFor(b, Face::Top), x, y, z, data.vertices, data.indices);
+                    if (isAir(x, y-1, z)) appendFace(BOTTOM_FACE, TileFor(b, Face::Bottom), x, y, z, data.vertices, data.indices);
+                    if (isAir(x, y, z+1)) appendFace(FRONT_FACE,TileFor(b, Face::Front),  x, y, z, data.vertices, data.indices);
+                    if (isAir(x, y, z-1)) appendFace(BACK_FACE, TileFor(b, Face::Back), x, y, z, data.vertices, data.indices);
+                }
+                else { // Without face culling
+                    appendFace(RIGHT_FACE, TileFor(b, Face::Right),  x,y,z, data.vertices, data.indices);
+                    appendFace(LEFT_FACE, TileFor(b, Face::Left), x, y, z, data.vertices, data.indices);
+                    appendFace(TOP_FACE,TileFor(b, Face::Top), x, y, z, data.vertices, data.indices);
+                    appendFace(BOTTOM_FACE, TileFor(b, Face::Bottom), x, y, z, data.vertices, data.indices);
+                    appendFace(FRONT_FACE,TileFor(b, Face::Front),  x, y, z, data.vertices, data.indices);
+                    appendFace(BACK_FACE, TileFor(b, Face::Back), x, y, z, data.vertices, data.indices);
+                }
+
             }
         }
     

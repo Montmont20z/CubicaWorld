@@ -13,6 +13,7 @@
 #include "Texture.hpp"
 #include "Camera.hpp"
 #include "Mesh.hpp"
+#include "RenderSettings.hpp"
 
 int screenWidth = 800;
 int screenHeight = 800;
@@ -101,7 +102,7 @@ int main(){
     // Shader lightShader("shaders/light.vert.glsl", "shaders/light.frag.glsl");
     Shader chunkShader("shaders/chunk.vert.glsl", "shaders/chunk.frag.glsl");
     
-    ChunkManager chunkManager(8, false);
+    ChunkManager chunkManager(8, IS_SINGLE_THREADED);
 
     glm::vec4 lightColor = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
     glm::vec3 lightPos = glm::vec3(1.5f, 0.5f, 0.0f);
