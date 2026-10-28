@@ -3,6 +3,7 @@
 #include "MeshData.hpp"
 #include <cstddef>
 #include <memory>
+// #include <iostream>
 
 void ChunkMesh::Upload(MeshData&& data)
 {
@@ -25,6 +26,21 @@ void ChunkMesh::Upload(MeshData&& data)
         
         // create EBO while VAO is bound so VAO stores element array binding
         ebo_->Bind();
+        // Debug  
+        // GLint boundVAO = 0;
+        // GLint boundEBO = 0;
+
+        // glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &boundVAO);
+        // glGetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &boundEBO);
+
+        // std::cerr
+        //     << "[Upload] VAO=" << boundVAO
+        //     << ", EBO=" << boundEBO
+        //     << ", isBuffer="
+        //     << static_cast<int>(glIsBuffer(
+        //         static_cast<GLuint>(boundEBO)))
+        //     << '\n';
+
         vao_.Unbind();
         
 
@@ -39,5 +55,49 @@ void ChunkMesh::Upload(MeshData&& data)
 void ChunkMesh::Draw() const {
     if (indexCount_ == 0) return;
     vao_.Bind();
+
+    // Debug
+    // GLint boundVAO = 0; GLint boundEBO = 0;
+    // glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &boundVAO);
+    // glGetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &boundEBO);
+
+    // if (boundVAO == 0 ||
+    //     !glIsVertexArray(static_cast<GLuint>(boundVAO)))
+    // {
+    //     std::cerr << "Invalid VAO: " << boundVAO << '\n';
+    //     return;
+    // }
+
+    // if (boundEBO == 0 ||
+    //     !glIsBuffer(static_cast<GLuint>(boundEBO)))
+    // {
+    //     std::cerr
+    //         << "Invalid EBO: " << boundEBO
+    //         << ", VAO: " << boundVAO << '\n';
+    //     return;
+    // }
+
+    // GLint eboBytes = 0;
+
+    // glGetBufferParameteriv(
+    //     GL_ELEMENT_ARRAY_BUFFER,
+    //     GL_BUFFER_SIZE,
+    //     &eboBytes
+    // );
+
+    // const auto requiredBytes =
+    //     static_cast<std::uint64_t>(indexCount_) *
+    //     sizeof(GLuint);
+
+    // if (requiredBytes > static_cast<std::uint64_t>(eboBytes))
+    // {
+    //     std::cerr
+    //         << "Index buffer too small: required = "
+    //         << requiredBytes
+    //         << ", actual = " << eboBytes << '\n';
+    //     return;
+    // }
+
+
     glDrawElements(GL_TRIANGLES, indexCount_, GL_UNSIGNED_INT, nullptr);
 }

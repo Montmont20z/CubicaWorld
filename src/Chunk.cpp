@@ -118,6 +118,8 @@ void Chunk::BuildMesh(const ChunkNeighbors& neighbors){
         else if (z >= CHUNK_SIZE) { neighbor = neighbors.pz; nz = z - CHUNK_SIZE; }
 
         if (!neighbor) return false; // treat as solid if neigbor not loaded
+        if (neighbor->State() == ChunkState::Empty) // avoid reading neighbor chunk during initial generation
+            return false;
         return neighbor->GetBlock(nx, y, nz) == BlockType::Air;
     };
     
