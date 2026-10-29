@@ -69,15 +69,15 @@ public:
     void Render(const Shader& shader, const Camera& camera) const;
     
     // --- Accessor ---
-    ChunkCoord Coord() const { return coord_; };
-    ChunkState State() const { return state_.load(std::memory_order_acquire); }
+    ChunkCoord GetChunkCoord() const { return chunkCoord_; };
+    ChunkState GetChunkState() const { return state_.load(std::memory_order_acquire); }
     BlockType GetBlock(int x, int y, int z) const; 
     void SetBlock(int x, int y, int z, BlockType type); 
     void MarkDirty(){ state_.store(ChunkState::Dirty, std::memory_order_release); };
 
 
 private:
-    ChunkCoord coord_;
+    ChunkCoord chunkCoord_;
     std::atomic<ChunkState> state_{ ChunkState::Empty };
 
     // BlockType blocks_[CHUNK_SIZE][CHUNK_HEIGHT][CHUNK_SIZE] = { BlockType::Dirt };

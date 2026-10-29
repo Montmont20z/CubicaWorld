@@ -14,6 +14,9 @@
 #include <glm/gtx/transform.hpp>
 #include <memory>
 #include <vector>
+#include <glm/gtc/noise.hpp>
+#include <algorithm>
+#include <iostream>
 
 // Face Template in local scope - no ODR issues, not visible outside this TU
 // Position is in block local space (0..1 range), translate per-block in BuildMesh
@@ -59,28 +62,49 @@ const ChunkVertex BACK_FACE[4] = {
 } // namespace
   
 Chunk::Chunk(ChunkCoord coord)
-    : coord_(coord)
+    : chunkCoord_(coord)
     , blocks_(std::make_unique<BlockType[]>(CHUNK_SIZE*CHUNK_HEIGHT*CHUNK_SIZE))
 {
 }
 
 void Chunk::Generate(){
-    // Flat terrain placeholder - swap in Perlin noise later.
-    // Everything below y=64 is Dirt; above is Air.
-    for (int x = 0; x < CHUNK_SIZE; ++x) {
-        for (int y = 0; y < CHUNK_HEIGHT; ++y) {
-            for (int z = 0; z < CHUNK_SIZE; ++z) {
-                // BlockAt(x,y,z) = BlockType::Air;
-                BlockAt(x,y,z) = (y <= SURFACE_Y) ? BlockType::Dirt : BlockType::Air;
-            }
-        }
-    }
+    // for (int x = 0; x < CHUNK_SIZE; ++x) {
+    //     for (int y = 0; y < CHUNK_HEIGHT; ++y) {
+    //         for (int z = 0; z < CHUNK_SIZE; ++z) {
+    //             BlockAt(x,y,z) = (y <= SURFACE_Y) ? BlockType::Stone: BlockType::Air;
+    //         }
+    //     }
+    // }
 
     for (int x = 0; x < CHUNK_SIZE; ++x) {
-        for (int y = 0; y < CHUNK_HEIGHT; ++y) {
-            for (int z = 0; z < CHUNK_SIZE; ++z) {
-                // int surfaceY = static_cast<int>(std::sin(x * 0.2f) * 5.0f) + SURFACE_Y;
-                // BlockAt(x,surfaceY, z) = BlockType::Stone;
+        for (int z = 0; z < CHUNK_SIZE; ++z) {
+            
+            int worldX = chunkCoord_.x * CHUNK_SIZE + x;
+            int worldZ = chunkCoord_.z * CHUNK_SIZE + z;
+
+            float amplitude = 20.0f;
+            float frequency = 0.02;
+            float noise = glm::perlin(glm::vec2(worldX * frequency, worldZ * frequency)) * amplitude;
+
+            // convert to y height
+            int surfaceY = static_cast<int>(SURFACE_Y + noise);
+                // int surfaceY = static_cast<int>(std::sin(z * 0.2f) * 8.0f) + static_cast<int>(std::sin(x * 0.2f) * 8.0f) + SURFACE_Y;
+                // BlockAt(x,surfaceY, z) = BlockType::Grass;
+                
+            // Fill the terrain column
+            for (int y = 0; y < CHUNK_HEIGHT; ++y) {
+                if (y > surfaceY) {
+                    BlockAt(x, y, z) = BlockType::Air;
+                }
+                else if (y == surfaceY) {
+                    BlockAt(x, y, z) = BlockType::Grass;
+                }
+                else if(y < surfaceY && y > surfaceY - 3){
+                    BlockAt(x, y, z) = BlockType::Dirt;
+                }
+                else {
+                    BlockAt(x, y, z) = BlockType::Stone;
+                }
             }
         }
     }
@@ -90,13 +114,14 @@ void Chunk::Generate(){
     // BlockAt(1, 64, 0) = BlockType::Stone;
     // BlockAt(2, 65, 0) = BlockType::Log;
     // BlockAt(3, 64, 0) = BlockType::Leaf;
+    // std::cout << "Perlin: " << glm::perlin(glm::vec2(1.5f,10.0f)) << std::endl;
     state_.store(ChunkState::Generated, std::memory_order_release); 
 }
 
 
 void Chunk::BuildMesh(const ChunkNeighbors& neighbors){
     
-    assert(State() == ChunkState::Generated || State() == ChunkState::Dirty);
+    assert(GetChunkState() == ChunkState::Generated || GetChunkState() == ChunkState::Dirty);
 
     // Return true if the given world-local coord is air (or out of bounds or unloaded neighbor)
     // For cross-chunk border queires, falls back to the neighbor pointer.
@@ -119,7 +144,7 @@ void Chunk::BuildMesh(const ChunkNeighbors& neighbors){
         else if (z >= CHUNK_SIZE) { neighbor = neighbors.pz; nz = z - CHUNK_SIZE; }
 
         if (!neighbor) return false; // treat as solid if neigbor not loaded
-        if (neighbor->State() == ChunkState::Empty) // avoid reading neighbor chunk during initial generation
+        if (neighbor->GetChunkState() == ChunkState::Empty) // avoid reading neighbor chunk during initial generation
             return false;
         return neighbor->GetBlock(nx, y, nz) == BlockType::Air;
     };
@@ -186,21 +211,21 @@ void Chunk::BuildMesh(const ChunkNeighbors& neighbors){
 // Main thread only from here down.
 
 void Chunk::UploadIfReady(){
-    if (State() != ChunkState::MeshReady) return;
+    if (GetChunkState() != ChunkState::MeshReady) return;
     chunkMesh_.Upload(std::move(pendingMesh_));    // Upload() clears pendingMesh_ internally
     state_.store(ChunkState::Uploaded, std::memory_order_release);
 }
 
 void Chunk::Render(const Shader& shader, const Camera& camera) const
 {
-   if (State() != ChunkState::Uploaded) return; 
+   if (GetChunkState() != ChunkState::Uploaded) return; 
    if (chunkMesh_.IndexCount() == 0) return;
    
    // World position derived from coord - no extra parameters.
    const glm::vec3 worldPos(
-        static_cast<float>(coord_.x) * CHUNK_SIZE,
+        static_cast<float>(chunkCoord_.x) * CHUNK_SIZE,
         0.0f,
-        static_cast<float>(coord_.z) * CHUNK_SIZE
+        static_cast<float>(chunkCoord_.z) * CHUNK_SIZE
    );
    shader.SetMat4("model", glm::translate(glm::mat4(1.0f), worldPos));
    camera.SetUniformMatrix(shader, "camMatrix");

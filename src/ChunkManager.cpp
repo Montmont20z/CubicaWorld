@@ -4,6 +4,7 @@
 #include <memory>
 #include <mutex>
 #include <vector>
+#include <iostream>
 
 ChunkManager::ChunkManager(int viewDistance, bool isSingleThreaded)
     : viewDistance_(viewDistance)
@@ -171,7 +172,7 @@ void ChunkManager::UpdateSingleThreaded(const glm::vec3& cameraPos,const Shader&
 
     // 3. Remesh Dirty chunks
     for (auto& [coord, chunk ]: chunks_){
-       if (chunk->State() == ChunkState::Dirty){
+       if (chunk->GetChunkState() == ChunkState::Dirty){
            chunk->BuildMesh(GatherNeighbors(coord));
            chunk->UploadIfReady(); // push dirty mesh to GPU
        } 
@@ -187,6 +188,11 @@ void ChunkManager::UpdateMultiThreaded(const glm::vec3& cameraPos,const Shader& 
     
     const int camChunkX = static_cast<int>(std::floor(cameraPos.x / CHUNK_SIZE));
     const int camChunkZ = static_cast<int>(std::floor(cameraPos.z / CHUNK_SIZE));
+    
+    // int worldX = camChunkX * CHUNK_SIZE + cameraPos.x;
+
+    std::cout << "Current Chunk X: " << camChunkX << "  Current Chunk Z: " << camChunkZ << std::endl;
+    std::cout << "Current X: " << cameraPos.x << "  Current Y: " << cameraPos.y << "  Current Z: " << cameraPos.z << std::endl;
 
     // 1. Load Chunk that should exsist but dont
     for (int dx = -viewDistance_; dx <= viewDistance_; ++dx){
@@ -260,7 +266,7 @@ void ChunkManager::UpdateMultiThreaded(const glm::vec3& cameraPos,const Shader& 
     {
         std::lock_guard lock(chunksMutex_);
         for (auto& [coord, chunk] : chunks_) {
-            if (chunk->State() == ChunkState::Dirty) {
+            if (chunk->GetChunkState() == ChunkState::Dirty) {
                 std::shared_ptr<Chunk> sharedChunk = chunk;
                 EnqueueWork([this, sharedChunk, coord]() {
                     sharedChunk->BuildMesh(GatherNeighbors(coord));
