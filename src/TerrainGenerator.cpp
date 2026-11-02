@@ -15,7 +15,7 @@ struct TerrainProfile {
 };
 
 constexpr TerrainProfile PLAINS {
-    4, 0.015f, 8.0f, 2.0f, 0.3f
+    4, 0.015f, 10.0f, 2.0f, 0.4f
 };
 
 constexpr TerrainProfile HILLS {
@@ -23,11 +23,13 @@ constexpr TerrainProfile HILLS {
 };
 
 constexpr TerrainProfile MOUNTAINS {
-    5, 0.01f, 35.0f, 2.0f, 0.55f
+    5, 0.01f, 65.0f, 2.0f, 0.55f
 };
 
 Biome SelectBiome(float temperature){
-    return temperature > 0.5f ? Biome::Desert : Biome::Grassland;
+    if (temperature < 0.4f) return Biome::Rockland;   // cold
+    if (temperature >= 0.4f && temperature < 0.6f) return Biome::Grassland;  // temperate
+    return Biome::Desert; 
 }
 
 Landform SelectLandform(float erosion){
@@ -58,9 +60,10 @@ int GetSurfaceHeight(
     const TerrainProfile& profile
 ) {
     float frequency = profile.frequency;
-    float amplitude = profile.amplitude;
+    float octaveAmplitude = 1.0f;
 
     float totalNoise = 0.0f;
+    float totalAmplitude = 0.0f;
 
     const glm::vec2 pos(
         static_cast<float>(worldX),
@@ -68,14 +71,21 @@ int GetSurfaceHeight(
     );
 
     for (int i = 0; i < profile.octaves; ++i) {
-        totalNoise += glm::perlin(pos * frequency) * amplitude;
+        totalNoise += glm::perlin(pos * frequency) * octaveAmplitude;
+        totalAmplitude += octaveAmplitude;
 
         frequency *= profile.lacunarity;
-        amplitude *= profile.persistence;
+        octaveAmplitude *= profile.persistence;
     }
 
+    // Normalize noise to approximately -1.0 to 1.0.
+    const float normalizedNoise = totalNoise / totalAmplitude;
+
+    // Apply overall terrain height.
+    const float height = SURFACE_Y + normalizedNoise * profile.amplitude;
+
     return std::clamp(
-        static_cast<int>(std::round(SURFACE_Y + totalNoise)),
+        static_cast<int>(std::round(height)),
         1,
         CHUNK_HEIGHT - 1
     );
@@ -119,6 +129,8 @@ TerrainColumn TerrainGenerator::GenerateColumn(
     column.landform = landform;
     column.surfaceY = surfaceY;
 
+    // LOG_DEBUG("Current Biome: " + static_cast<int>(biome));
+
     // Generate blocks according to biome.
     for (int y = 0; y < CHUNK_HEIGHT; ++y) {
 
@@ -138,6 +150,15 @@ TerrainColumn TerrainGenerator::GenerateColumn(
                 case Biome::Grassland:
                     if (y == surfaceY)
                         column.blocks[y] = BlockType::Grass;
+                    else if (y > surfaceY - 4)
+                        column.blocks[y] = BlockType::Dirt;
+                    else
+                        column.blocks[y] = BlockType::Stone;
+                    break;
+                
+                case Biome::Rockland:
+                    if (y == surfaceY)
+                        column.blocks[y] = BlockType::Stone;
                     else if (y > surfaceY - 4)
                         column.blocks[y] = BlockType::Dirt;
                     else

@@ -8,6 +8,7 @@
 enum class Biome {
     Desert,
     Grassland,
+    Rockland,
 };
 
 enum class Landform {
