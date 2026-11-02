@@ -8,6 +8,7 @@
 #include <glm/vec3.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
+#include "Logger.hpp"
 #include "ChunkManager.hpp"
 #include "Shader.hpp"
 #include "Texture.hpp"
@@ -15,8 +16,8 @@
 #include "Mesh.hpp"
 #include "RenderSettings.hpp"
 
-int screenWidth = 800;
-int screenHeight = 800;
+int screenWidth = 1200;
+int screenHeight = 1200;
 
 void frameBufferCallback(GLFWwindow* window, int width, int height){
     glViewport(0,0, width, height);
@@ -48,6 +49,9 @@ int main(){
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE); // do not use deprecated functions (eg glBegin, glEnd)
     // TODO: remove this after development
     glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GLFW_TRUE);
+    
+    Logger::Init("logs/CubicaWorld.log");
+    Logger::Log(LogLevel::Info, "Application starting");
 
     std::vector<Vertex> lightVertices = {
         // Position              Normal (unused)       Color (unused)        TexCoord (unused)
@@ -102,7 +106,7 @@ int main(){
     // Shader lightShader("shaders/light.vert.glsl", "shaders/light.frag.glsl");
     Shader chunkShader("shaders/chunk.vert.glsl", "shaders/chunk.frag.glsl");
     
-    ChunkManager chunkManager(8, IS_SINGLE_THREADED);
+    ChunkManager chunkManager(VIEW_DISTANCE, IS_SINGLE_THREADED);
 
     glm::vec4 lightColor = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
     glm::vec3 lightPos = glm::vec3(1.5f, 0.5f, 0.0f);
@@ -116,7 +120,7 @@ int main(){
     glUniform1i(glGetUniformLocation(chunkShader.ID, "atlasTiles"), 16);
     chunkShader.AttachTextureUnit(0, "tex0");
     
-    Camera camera(screenWidth, screenHeight, glm::vec3(1.0f, 68.0f, -1.0f));
+    Camera camera(screenWidth, screenHeight, glm::vec3(0.0f, 68.0f, 0.0f));
     // set user pointer and callback
     glfwSetWindowUserPointer(window, &camera);
     glfwSetFramebufferSizeCallback(window, frameBufferCallback);
@@ -183,5 +187,7 @@ int main(){
     // clean up resources
     glfwDestroyWindow(window);
     glfwTerminate();
+    Logger::Log(LogLevel::Info, "Application shutting down");
+    Logger::Shutdown();
     return 0;
 }

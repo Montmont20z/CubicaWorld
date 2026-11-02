@@ -35,6 +35,7 @@ add_executable(cubica
     src/ChunkManager.cpp
     src/ChunkMesh.cpp
     src/TerrainGenerator.cpp
+    src/Logger.cpp
 )
 
 target_link_libraries(cubica

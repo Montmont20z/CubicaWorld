@@ -1,4 +1,5 @@
 #include "Camera.hpp"
+#include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtx/rotate_vector.hpp>
@@ -70,7 +71,7 @@ void Camera::ProcessInput(GLFWwindow *window)
 	}
     
     // handle mouse movement
-    if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS)
+    if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS)
 	{
         glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);    
         
