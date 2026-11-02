@@ -7,6 +7,7 @@
 #include "MeshData.hpp"
 #include "Constants.hpp"
 #include "Shader.hpp"
+#include "TerrainGenerator.hpp"
 
 
 
@@ -54,7 +55,7 @@ public:
     // ----------------- Called by worker threads -------------------------
     
     // Fill blocks_ with solid data (flat fill for now; swap in Perlin later).
-    void Generate();
+    void Generate(const TerrainGenerator& generator);
     
     // Read blocks_ + neighbor blocks, write into pendingMesh_.
     void BuildMesh(const ChunkNeighbors& neighbors = {});

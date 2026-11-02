@@ -6,7 +6,7 @@ enum class Face : uint8_t { Right, Left, Top, Bottom, Front, Back };
 
 struct BlockTiles { uint8_t top, bottom, side; };
 
-inline constexpr BlockTiles kBlockTiles[] = {
+inline constexpr BlockTiles BLOCK_TILES[] = {
     /* Air */ // Air block is skipped
     /* Grass */ { 0,  2,  1 },
     /* Dirt  */ { 2,  2,  2 },
@@ -21,11 +21,11 @@ inline constexpr BlockTiles kBlockTiles[] = {
     /* DeadBush */ { 12,12,12},
 };
 
-static_assert(sizeof(kBlockTiles) / sizeof(kBlockTiles[0]) == static_cast<size_t>(BlockType::DeadBush),
-                "kBlockTiles must consist each BlockType");
+static_assert(sizeof(BLOCK_TILES) / sizeof(BLOCK_TILES[0]) == static_cast<size_t>(BlockType::DeadBush),
+                "BLOCK_TILES must consist each BlockType");
 
 
 constexpr uint8_t TileFor(BlockType b, Face f){
-    const BlockTiles& t = kBlockTiles[static_cast<size_t>(b) - 1];
+    const BlockTiles& t = BLOCK_TILES[static_cast<size_t>(b) - 1];
     return f == Face::Top ? t.top : f == Face::Bottom ? t.bottom : t.side;
 }

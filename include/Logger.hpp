@@ -2,6 +2,8 @@
 /** Usage:
     Logger::Log(LogLevel::Debug, "Generating terrain");
     Logger::Log(LogLevel::Info, "Terrain generation completed");
+    Logger::Log(LogLevel::Warning, "...");
+    Logger::Log(LogLevel::Error, "...");
 */
 #pragma once
 

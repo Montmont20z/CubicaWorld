@@ -1,6 +1,5 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
-#include <iostream>
 #include <math.h>
 #include <stb/stb_image.h>
 #include <vector>
@@ -170,6 +169,7 @@ int main(){
     chunkShader.Activate();
     glUniform1i(glGetUniformLocation(chunkShader.ID, "atlasTiles"), 16);
     chunkShader.AttachTextureUnit(0, "tex0");
+    LOG_INFO("Loaded Texture Atlas");
     
     Camera camera(screenWidth, screenHeight, glm::vec3(0.0f, 68.0f, 0.0f));
     // set user pointer and callback

@@ -5,6 +5,7 @@
 #include "MeshData.hpp"
 #include "ChunkMesh.hpp"
 #include "RenderSettings.hpp"
+#include "TerrainGenerator.hpp"
 
 #include <atomic>
 #include <cassert>
@@ -15,8 +16,6 @@
 #include <memory>
 #include <vector>
 #include <glm/gtc/noise.hpp>
-#include <algorithm>
-#include <iostream>
 
 // Face Template in local scope - no ODR issues, not visible outside this TU
 // Position is in block local space (0..1 range), translate per-block in BuildMesh
@@ -67,7 +66,8 @@ Chunk::Chunk(ChunkCoord coord)
 {
 }
 
-void Chunk::Generate(){
+void Chunk::Generate(const TerrainGenerator& generator){
+    // Render flat terrain 
     // for (int x = 0; x < CHUNK_SIZE; ++x) {
     //     for (int y = 0; y < CHUNK_HEIGHT; ++y) {
     //         for (int z = 0; z < CHUNK_SIZE; ++z) {
@@ -75,45 +75,26 @@ void Chunk::Generate(){
     //         }
     //     }
     // }
+    // 
+    // 2d Sin wave terrain
+    // int surfaceY = static_cast<int>(std::sin(z * 0.2f) * 8.0f) + static_cast<int>(std::sin(x * 0.2f) * 8.0f) + SURFACE_Y;
+    // BlockAt(x,surfaceY, z) = BlockType::Grass;
 
     for (int x = 0; x < CHUNK_SIZE; ++x) {
         for (int z = 0; z < CHUNK_SIZE; ++z) {
             
-            int worldX = chunkCoord_.x * CHUNK_SIZE + x;
-            int worldZ = chunkCoord_.z * CHUNK_SIZE + z;
+            const int worldX = chunkCoord_.x * CHUNK_SIZE + x;
+            const int worldZ = chunkCoord_.z * CHUNK_SIZE + z;
+            
+            TerrainColumn column = generator.GenerateColumn(worldX, worldZ);
 
-            float amplitude = 20.0f;
-            float frequency = 0.02;
-            float noise = glm::perlin(glm::vec2(worldX * frequency, worldZ * frequency)) * amplitude;
-
-            // convert to y height
-            int surfaceY = static_cast<int>(SURFACE_Y + noise);
-                // int surfaceY = static_cast<int>(std::sin(z * 0.2f) * 8.0f) + static_cast<int>(std::sin(x * 0.2f) * 8.0f) + SURFACE_Y;
-                // BlockAt(x,surfaceY, z) = BlockType::Grass;
-                
-            // Fill the terrain column
+            // fill up blocks in Current Chunk with Terrain Column
             for (int y = 0; y < CHUNK_HEIGHT; ++y) {
-                if (y > surfaceY) {
-                    BlockAt(x, y, z) = BlockType::Air;
-                }
-                else if (y == surfaceY) {
-                    BlockAt(x, y, z) = BlockType::Grass;
-                }
-                else if(y < surfaceY && y > surfaceY - 3){
-                    BlockAt(x, y, z) = BlockType::Dirt;
-                }
-                else {
-                    BlockAt(x, y, z) = BlockType::Stone;
-                }
+                BlockAt(x, y, z) = column.blocks[y];
             }
+            
         }
     }
-    // BlockAt(0, SURFACE_Y, 0) = BlockType::Sand;
-    // BlockAt(0, 70, 14) = BlockType::Grass;
-    // BlockAt(0, 70, 1) = BlockType::Stone;
-    // BlockAt(1, 64, 0) = BlockType::Stone;
-    // BlockAt(2, 65, 0) = BlockType::Log;
-    // BlockAt(3, 64, 0) = BlockType::Leaf;
     // std::cout << "Perlin: " << glm::perlin(glm::vec2(1.5f,10.0f)) << std::endl;
     state_.store(ChunkState::Generated, std::memory_order_release); 
 }

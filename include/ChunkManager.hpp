@@ -67,6 +67,7 @@ private:
     std::mutex                      workMutex_;
     bool                            stopping_{ false };
     
+    TerrainGenerator terrainGenerator_;
     bool isSingleThreaded_;
     int viewDistance_;
     int maxUploadsPerFrame_ = 4;

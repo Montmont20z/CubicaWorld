@@ -4,7 +4,6 @@
 #include <memory>
 #include <mutex>
 #include <vector>
-#include <iostream>
 
 ChunkManager::ChunkManager(int viewDistance, bool isSingleThreaded)
     : viewDistance_(viewDistance)
@@ -148,7 +147,7 @@ void ChunkManager::UpdateSingleThreaded(const glm::vec3& cameraPos,const Shader&
             }
 
             // single thread draw chunk
-            rawChunk->Generate();
+            rawChunk->Generate(terrainGenerator_);
             rawChunk->BuildMesh(GatherNeighbors(coord));
             rawChunk->UploadIfReady(); // upload Mesh to GPU
        }
@@ -236,7 +235,7 @@ void ChunkManager::UpdateMultiThreaded(const glm::vec3& cameraPos,const Shader& 
 
             // Push work onto thread pool
             EnqueueWork([this, rawChunk, coord](){
-                    rawChunk->Generate();
+                    rawChunk->Generate(terrainGenerator_);
                     rawChunk->BuildMesh(GatherNeighbors(coord));
                     {
                         std::lock_guard lock(uploadMutex_);
