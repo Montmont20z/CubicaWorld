@@ -191,8 +191,9 @@ void ChunkManager::UpdateMultiThreaded(const glm::vec3& cameraPos,const Shader& 
     
     // int worldX = camChunkX * CHUNK_SIZE + cameraPos.x;
 
-    std::cout << "Current Chunk X: " << camChunkX << "  Current Chunk Z: " << camChunkZ << std::endl;
-    std::cout << "Current X: " << cameraPos.x << "  Current Y: " << cameraPos.y << "  Current Z: " << cameraPos.z << std::endl;
+    // TODO: replace with in game overlay
+    // std::cout << "Current Chunk X: " << camChunkX << "  Current Chunk Z: " << camChunkZ << std::endl;
+    // std::cout << "Current X: " << cameraPos.x << "  Current Y: " << cameraPos.y << "  Current Z: " << cameraPos.z << std::endl;
 
     // 1. Load Chunk that should exsist but dont
     for (int dx = -viewDistance_; dx <= viewDistance_; ++dx){

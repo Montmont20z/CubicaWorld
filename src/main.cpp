@@ -30,28 +30,72 @@ void frameBufferCallback(GLFWwindow* window, int width, int height){
 }
 
 static void errorCallback(int error, const char* description){
-    fprintf(stderr, "Error: %s\n", description);
+    LOG_ERROR("GLFW error " + std::to_string(error) + ": " + description);
 }
 
+#ifdef DEBUG_MODE
+    void APIENTRY OpenGLDebugCallback(
+        GLenum source,
+        GLenum type,
+        GLuint id,
+        GLenum severity,
+        GLsizei length,
+        const GLchar* message,
+        const void* userParam
+    ) {
+        LogLevel level;
+
+        switch (severity) {
+            case GL_DEBUG_SEVERITY_HIGH:
+                level = LogLevel::Error;
+                break;
+
+            case GL_DEBUG_SEVERITY_MEDIUM:
+                level = LogLevel::Warning;
+                break;
+
+            case GL_DEBUG_SEVERITY_LOW:
+                level = LogLevel::Debug;
+                break;
+
+            case GL_DEBUG_SEVERITY_NOTIFICATION:
+                return; // Ignore informational notifications
+
+            default:
+                level = LogLevel::Warning;
+                break;
+        }
+
+        std::string logMessage =
+            "OpenGL [" + std::to_string(id) + "] " +
+            std::string(message, length);
+
+        Logger::Log(level, logMessage);
+    }
+#endif
+
 int main(){
-    // std::cout << "Hello, World!3333" << std::endl;
-    
     /* Initialization */
+    Logger::Init("logs/CubicaWorld.log");
+    LOG_INFO("Application starting");
+    
+    glfwSetErrorCallback(errorCallback);
     /* Initialize the library (glfw3) */
-    if (!glfwInit()) {
-        std::cerr << "Failed to initialize GLFW" << std::endl;
+    if (!glfwInit()) {        
+        LOG_ERROR("Failed to initialize GLFW");
+        glfwTerminate();
+        Logger::Shutdown();
         return -1;
     }
-    glfwSetErrorCallback(errorCallback);
-    // set OpenGL version (3.3 Core)
+    // set OpenGL version (4.3 Core)
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE); // do not use deprecated functions (eg glBegin, glEnd)
-    // TODO: remove this after development
-    glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GLFW_TRUE);
+    #ifdef DEBUG_MODE
+        LOG_DEBUG("Debug Mode Enabled");
+        glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GLFW_TRUE);
+    #endif
     
-    Logger::Init("logs/CubicaWorld.log");
-    Logger::Log(LogLevel::Info, "Application starting");
 
     std::vector<Vertex> lightVertices = {
         // Position              Normal (unused)       Color (unused)        TexCoord (unused)
@@ -86,17 +130,24 @@ int main(){
     // create the window
     GLFWwindow* window = glfwCreateWindow(screenWidth, screenHeight, "Cubica World", nullptr, nullptr);
     if (window == nullptr){
-        std::cerr << "Failed to create GLFW window" << std::endl;
+        LOG_ERROR("Failed to create GLFW window");
+        glfwDestroyWindow(window);
         glfwTerminate();
+        Logger::Shutdown();
         return -1;
     }
     glfwMakeContextCurrent(window);
+    LOG_INFO("GLFW window initialized");
 
     // load OpenGL function pointers using GLAD // must be loaded at runtime
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
-        std::cerr << "Failed to initialize GLAD\n";
+        LOG_ERROR("Failed to initialize GLAD");
+        glfwDestroyWindow(window);
+        glfwTerminate();
+        Logger::Shutdown();
         return -1;
     }
+    LOG_INFO("OpenGL initialized");
     
     glfwSwapInterval(1); // Enable V-sync
 
@@ -134,11 +185,11 @@ int main(){
     float prevTime = static_cast<float>(glfwGetTime());
     
     // OpenGL Debug
-    glEnable(GL_DEBUG_OUTPUT);
-    glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
-    glDebugMessageCallback([](GLenum, GLenum, GLuint, GLenum severity, GLsizei, const GLchar* msg, const void*){
-        std::cerr << "GL DEBUG: " << msg << std::endl;
-    }, nullptr);
+    #ifdef DEBUG_MODE
+        glEnable(GL_DEBUG_OUTPUT);
+        glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
+        glDebugMessageCallback( OpenGLDebugCallback , nullptr);
+    #endif
 
     // main game loop
     while(!glfwWindowShouldClose(window)){
@@ -185,9 +236,9 @@ int main(){
     }
 
     // clean up resources
+    LOG_INFO("Application shutting down");
+    Logger::Shutdown();
     glfwDestroyWindow(window);
     glfwTerminate();
-    Logger::Log(LogLevel::Info, "Application shutting down");
-    Logger::Shutdown();
     return 0;
 }

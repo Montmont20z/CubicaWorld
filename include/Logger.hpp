@@ -9,6 +9,7 @@
 #include <iostream>
 #include <mutex>
 #include <string>
+#include <source_location>
 
 enum class LogLevel {
     Debug,
@@ -22,9 +23,27 @@ public:
     static void Init(const std::string& filepath);
     static void Shutdown();
 
-    static void Log(LogLevel level, const std::string& message);
+    static void Log(LogLevel level, const std::string& message, std::source_location location = std::source_location::current());
 
 private:
     static std::ofstream file;
     static std::mutex mutex;
 };
+
+// Debug logging is removed in Release builds.
+#ifdef DEBUG_MODE
+    #define LOG_DEBUG(...) \
+        do { Logger::Log(LogLevel::Debug, __VA_ARGS__); } while (false)
+#else
+    #define LOG_DEBUG(...) do { } while (false)
+#endif
+
+// These remain available in Release builds.
+#define LOG_INFO(...) \
+    do { Logger::Log(LogLevel::Info, __VA_ARGS__); } while (false)
+
+#define LOG_WARNING(...) \
+    do { Logger::Log(LogLevel::Warning, __VA_ARGS__); } while (false)
+
+#define LOG_ERROR(...) \
+    do { Logger::Log(LogLevel::Error, __VA_ARGS__); } while (false)

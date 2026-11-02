@@ -47,6 +47,10 @@ target_link_libraries(cubica
     glm
 )
 
+# Enable debug features only in Debug configuration
+target_compile_definitions(cubica PRIVATE
+    $<$<CONFIG:Debug>:DEBUG_MODE>
+)
 
 # ---------- Copy shaders & assets directory to the runtime (binary) folder ----------
 add_custom_command(TARGET cubica POST_BUILD
@@ -60,11 +64,16 @@ add_custom_command(TARGET cubica POST_BUILD
           $<TARGET_FILE_DIR:cubica>/assets
 )
 # --------------------------------------------------------------------------
+# AddressSanitizer for Debug builds (GCC / Clang)
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
 
-# Enable AddressSanitizer for Debug builds
-if(CMAKE_BUILD_TYPE STREQUAL "Debug" OR NOT CMAKE_BUILD_TYPE)
-    message(STATUS "Enabling AddressSanitizer for Debug build")
-    
-    add_compile_options(-fsanitize=address -fno-omit-frame-pointer)
-    add_link_options(-fsanitize=address)
+    target_compile_options(cubica PRIVATE
+        $<$<CONFIG:Debug>:-fsanitize=address>
+        $<$<CONFIG:Debug>:-fno-omit-frame-pointer>
+    )
+
+    target_link_options(cubica PRIVATE
+        $<$<CONFIG:Debug>:-fsanitize=address>
+    )
+
 endif()

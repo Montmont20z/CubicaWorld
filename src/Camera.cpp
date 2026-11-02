@@ -94,7 +94,7 @@ void Camera::ProcessInput(GLFWwindow *window)
         glm::vec3 newFront = glm::rotate(Front, glm::radians(-rotY), right);
         
         // Decides whether or not the next vertical Orientation is legal or not
-		if (abs(glm::angle(newFront, Up) - glm::radians(90.0f)) <= glm::radians(85.0f))
+		if (std::abs(glm::angle(newFront, Up) - glm::radians(90.0f)) <= glm::radians(85.0f))
 		{
             Front = glm::normalize(newFront);
         }

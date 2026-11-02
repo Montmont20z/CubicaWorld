@@ -1,6 +1,6 @@
 #include "Shader.hpp"
+#include "Logger.hpp"
 #include <fstream>
-#include <sstream>
 #include <iostream>
 
 // using namespace std;
@@ -9,12 +9,14 @@ static std::string get_file_content(const std::string& filename)
 {
     std::ifstream in(filename, std::ios::binary); // open the file for input, read byte as-is (no conversion) (no new line conversion (\r\n -> \n))
     if(!in){ // check if file is successfully opened
+        LOG_ERROR("Shader: Failed to open file: " + filename);
         throw std::runtime_error("Shader: Failed to open file: " + filename);
     }
     in.seekg(0, std::ios::end); // move the file cursor to end of the file
 
     auto size = in.tellg(); // return the current cursor position (get file size in byte).
     if (size <= 0){
+        LOG_ERROR("Shader: Shader file: " + filename + " is empty or unreadable"); 
         throw std::runtime_error("Shader: Shader file: " + filename + " is empty or unreadable");
     } 
     std::string contents;
@@ -36,7 +38,7 @@ static bool check_shader_compile(GLuint shader){
         glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &logLen);
         std::string log(logLen, ' ');
         glGetShaderInfoLog(shader, logLen, nullptr, &log[0]);
-        std::cerr << "Shader: Shader compile error:\n" << log << std::endl;
+        LOG_ERROR("Shader compile error: " + log);
         return false;
     }
     return true;
@@ -51,7 +53,7 @@ static bool check_program_link(GLuint prog){
         glGetProgramiv(prog, GL_INFO_LOG_LENGTH, &logLen);
         std::string log(logLen, ' ');
         glGetProgramInfoLog(prog, logLen, nullptr, &log[0]);
-        std::cerr << "Shader: Program link error:\n" << log << std::endl;
+        LOG_ERROR("Shader Program link error: " + log );
         return false;
     }
     return true;
@@ -71,6 +73,8 @@ Shader::Shader(const std::string& vertexFile, const std::string& fragmentFile)
     glCompileShader(vertexShader); // Compiles the shader source into GPU-executable code.
     if (!check_shader_compile(vertexShader)) { 
         glDeleteShader(vertexShader);
+        Logger::Log(LogLevel::Error, "Shader: Failed to complied vertex shader");
+        LOG_ERROR("Shader: Failed to complied vertex shader");
         throw std::runtime_error("Shader: Failed to complied vertex shader");
     }
     
@@ -80,6 +84,7 @@ Shader::Shader(const std::string& vertexFile, const std::string& fragmentFile)
     if (!check_shader_compile(fragmentShader)) { 
         glDeleteShader(vertexShader);
         glDeleteShader(fragmentShader);
+        LOG_ERROR("Shader: Failed to complied fragment Shader");
         throw std::runtime_error("Shader: Failed to complied fragment Shader");
     }
 
@@ -93,6 +98,7 @@ Shader::Shader(const std::string& vertexFile, const std::string& fragmentFile)
         glDeleteShader(vertexShader);
         glDeleteShader(fragmentShader);
         glDeleteProgram(ID);
+        LOG_ERROR("Shader: Failed to link shader");
         throw std::runtime_error("Shader: Failed to link shader");
     }   
     
