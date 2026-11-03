@@ -30,7 +30,7 @@ add_executable(cubica
     src/EBO.cpp
     src/Texture.cpp
     src/Camera.cpp
-    src/Mesh.cpp
+    # src/Mesh.cpp
     src/Chunk.cpp
     src/ChunkManager.cpp
     src/ChunkMesh.cpp

@@ -1,5 +1,14 @@
 
 #pragma once
+/**
+ TODO: 
+ cadidate terrain type: Tundra, Taiga  // cold
+        Forest, Swamp  // temperate
+        Savanna,  Jungle  // hot
+ add structure: tree, cactus, tallgrass, flower, big rocks, ore viens, 
+ add snow cap lines: y> SNOW_LINES
+ Caves?? villages? floating island? water?? lava??  
+*/
 
 #include "BlockType.hpp"
 #include "Constants.hpp"

@@ -1,7 +1,6 @@
 #pragma once
 #include <glad/glad.h>
 #include <string>
-#include "Shader.hpp"
 
 class Texture {
 private:
@@ -21,6 +20,5 @@ public:
 
     void Bind(GLuint unit) const noexcept;
     void Unbind() const noexcept;
-
 
 };

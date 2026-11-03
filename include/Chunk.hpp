@@ -89,6 +89,5 @@ private:
     const BlockType& BlockAt(int x, int y, int z) const { return blocks_[x + y * CHUNK_SIZE * CHUNK_SIZE + z * CHUNK_SIZE]; } // this = const Chunk* → const overload     → returns const BlockType& (read-only)
 
     ChunkMesh chunkMesh_;                                        // GPU object, main thread only
-    std::vector<std::unique_ptr<Texture>> textures_;
     MeshData pendingMesh_;
 };

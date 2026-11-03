@@ -1,7 +1,23 @@
 classDiagram
+    class C_0013137037997763296514["LogLevel"]
+    class C_0013137037997763296514 {
+        <<enumeration>>
+        Debug
+        Info
+        Warning
+        Error
+    }
+    class C_0009718600809915458328["Logger"]
+    class C_0009718600809915458328 {
+        +Init(const std::string & filepath) void$
+        +Log(LogLevel level, const std::string & message, std::source_location location = std::source_location::current&lpar;&rpar;) void$
+        +Shutdown() void$
+        -file : std::ofstream
+        -mutex : std::mutex
+    }
     class C_0010942968540697269095["Texture"]
     class C_0010942968540697269095 {
-        +Texture(const std::string & path, GLenum texType, GLenum slot, GLenum format, GLenum pixelType) void
+        +Texture(const std::string & path, GLenum texType, GLenum slot, GLenum pixelType) void
         +Texture(const Texture &) void
         +Texture(Texture && other) void
         +~Texture() void
@@ -127,6 +143,39 @@ classDiagram
         Grass
         Dirt
         Stone
+        Log
+        Leaf
+        Sand
+        Water
+        Cactus
+        Flower
+        ShortGrass
+        DeadBush
+    }
+    class C_0000310873427179874210["Biome"]
+    class C_0000310873427179874210 {
+        <<enumeration>>
+        Desert
+        Grassland
+        Rockland
+    }
+    class C_0005432897812664549020["Landform"]
+    class C_0005432897812664549020 {
+        <<enumeration>>
+        Plains
+        Hills
+        Mountains
+    }
+    class C_0012015422890616529415["TerrainColumn"]
+    class C_0012015422890616529415 {
+        +biome : Biome
+        +blocks : std::array&lt;BlockType,CHUNK_HEIGHT&gt;
+        +landform : Landform
+        +surfaceY : int
+    }
+    class C_0005842108220030593548["TerrainGenerator"]
+    class C_0005842108220030593548 {
+        +GenerateColumn(int worldX, int worldZ) [const] TerrainColumn
     }
     class C_0001417863006499570610["ChunkCoord"]
     class C_0001417863006499570610 {
@@ -160,24 +209,23 @@ classDiagram
         -BlockAt(int x, int y, int z) BlockType &
         -BlockAt(int x, int y, int z) [const] const BlockType &
         +BuildMesh(const ChunkNeighbors & neighbors = &lbrace;&rbrace;) void
-        +Coord() [const] ChunkCoord
-        +Generate() void
+        +Generate(const TerrainGenerator & generator) void
         +GetBlock(int x, int y, int z) [const] BlockType
+        +GetChunkCoord() [const] ChunkCoord
+        +GetChunkState() [const] ChunkState
         +MarkDirty() void
         +Render(const Shader & shader, const Camera & camera) [const] void
         +SetBlock(int x, int y, int z, BlockType type) void
-        +State() [const] ChunkState
         +UploadIfReady() void
         -blocks_ : std::unique_ptr&lt;BlockType[]&gt;
+        -chunkCoord_ : ChunkCoord
         -chunkMesh_ : ChunkMesh
-        -coord_ : ChunkCoord
         -pendingMesh_ : MeshData
         -state_ : std::atomic&lt;ChunkState&gt;
-        -textures_ : std::vector&lt;std::unique_ptr&lt;Texture&gt;&gt;
     }
     class C_0009584862300044083326["ChunkManager"]
     class C_0009584862300044083326 {
-        +ChunkManager(int viewDistance = 8) void
+        +ChunkManager(int viewDistance = 8, bool isSingleThreaded = false) void
         +~ChunkManager() void
         -DrainPendingDeletes() void
         +EnqueueWork(std::function&lt;void &lpar;&rpar;&gt; fn) void
@@ -185,14 +233,17 @@ classDiagram
         +GetChunk(ChunkCoord coord) [const] std::shared_ptr&lt;const Chunk&gt;
         -MakeChunk(ChunkCoord coord) std::shared_ptr&lt;Chunk&gt;
         +Update(const glm::vec3 & cameraPos, const Shader & shader, const Camera & camera) void
+        -UpdateMultiThreaded(const glm::vec3 & cameraPos, const Shader & shader, const Camera & camera) void
+        -UpdateSingleThreaded(const glm::vec3 & cameraPos, const Shader & shader, const Camera & camera) void
         +WorkerLoop() void
-        -blockTexturePath_ : std::string
         -chunksMutex_ : std::mutex
         -chunks_ : std::unordered_map&lt;ChunkCoord,std::shared_ptr&lt;Chunk&gt;,ChunkCoordHash&gt;
         -deleteMutex_ : std::mutex
+        -isSingleThreaded_ : bool
         -maxUploadsPerFrame_ : int
         -pendingDeletes_ : std::vector&lt;Chunk *&gt;
         -stopping_ : bool
+        -terrainGenerator_ : TerrainGenerator
         -uploadMutex_ : std::mutex
         -uploadQueue_ : std::queue&lt;ChunkCoord&gt;
         -viewDistance_ : int
@@ -201,35 +252,31 @@ classDiagram
         -workQueue_ : std::queue&lt;std::function&lt;void &lpar;&rpar;&gt;&gt;
         -workers_ : std::vector&lt;std::thread&gt;
     }
-    class C_0014704110374031903259["Vertex"]
-    class C_0014704110374031903259 {
-        +color : glm::vec3
-        +normal : glm::vec3
-        +position : glm::vec3
-        +texCoords : glm::vec2
+    class C_0003820774179051396968["Face"]
+    class C_0003820774179051396968 {
+        <<enumeration>>
+        Right
+        Left
+        Top
+        Bottom
+        Front
+        Back
     }
-    class C_0007974188475117411548["VBO&lt;Vertex&gt;"]
-    class C_0007974188475117411548 {
+    class C_0004129637194818917105["BlockTiles"]
+    class C_0004129637194818917105 {
+        +bottom : uint8_t
+        +side : uint8_t
+        +top : uint8_t
     }
-    class C_0013865567801987631274["Mesh"]
-    class C_0013865567801987631274 {
-        +Mesh(const std::vector&lt;Vertex&gt; & vertices, const std::vector&lt;GLuint&gt; & indices, std::vector&lt;std::unique_ptr&lt;Texture&gt;&gt; && textures, GLenum usage) void
-        +Mesh(const Mesh &) void
-        +Mesh(Mesh && other) void
-        +~Mesh() void
-        +operator=(const Mesh &) Mesh &
-        +operator=(Mesh && other) Mesh &
-        +Draw(const Shader & shader, const Camera & camare) [const] void
-        +IndexCount() [const] GLuint
-        +SetTexture(const Texture & texture) void
-        +Upload(MeshData && meshData) void
-        -ebo_ : EBO
-        -indices_ : std::vector&lt;GLuint&gt;
-        -textures_ : std::vector&lt;std::unique_ptr&lt;Texture&gt;&gt;
-        -vao_ : VAO
-        -vbo_ : VBO&lt;Vertex&gt;
-        -vertices_ : std::vector&lt;Vertex&gt;
+    class C_0013546676849351482217["TerrainProfile"]
+    class C_0013546676849351482217 {
+        +amplitude : float
+        +frequency : float
+        +lacunarity : float
+        +octaves : int
+        +persistence : float
     }
+    C_0009718600809915458328 ..> C_0013137037997763296514 : 
     C_0005049148943034209802 ..> C_0014899929896336503560 : 
     C_0002773998954947599944 o-- C_0001873370130499785759 : +vertices
     C_0009727957313001807244 ..> C_0001873370130499785759 : 
@@ -238,19 +285,23 @@ classDiagram
     C_0011116618673378011020 o-- C_0005533647331416267481 : -vao_
     C_0011116618673378011020 o-- C_0009727957313001807244 : -vbo_
     C_0011116618673378011020 o-- C_0004105051469622735371 : -ebo_
+    C_0012015422890616529415 o-- C_0016875631551870229693 : +blocks
+    C_0012015422890616529415 o-- C_0000310873427179874210 : +biome
+    C_0012015422890616529415 o-- C_0005432897812664549020 : +landform
+    C_0005842108220030593548 ..> C_0012015422890616529415 : 
     C_0004280677657916169007 ..> C_0001417863006499570610 : 
     C_0004761464329442714065 --> C_0003408262556741368811 : +px
     C_0004761464329442714065 --> C_0003408262556741368811 : +nx
     C_0004761464329442714065 --> C_0003408262556741368811 : +pz
     C_0004761464329442714065 --> C_0003408262556741368811 : +nz
+    C_0003408262556741368811 ..> C_0005842108220030593548 : 
     C_0003408262556741368811 ..> C_0004761464329442714065 : 
     C_0003408262556741368811 ..> C_0014899929896336503560 : 
     C_0003408262556741368811 ..> C_0005049148943034209802 : 
-    C_0003408262556741368811 o-- C_0001417863006499570610 : -coord_
+    C_0003408262556741368811 o-- C_0001417863006499570610 : -chunkCoord_
     C_0003408262556741368811 o-- C_0002305738170309990645 : -state_
     C_0003408262556741368811 o-- C_0016875631551870229693 : -blocks_
     C_0003408262556741368811 o-- C_0011116618673378011020 : -chunkMesh_
-    C_0003408262556741368811 o-- C_0010942968540697269095 : -textures_
     C_0003408262556741368811 o-- C_0002773998954947599944 : -pendingMesh_
     C_0009584862300044083326 ..> C_0014899929896336503560 : 
     C_0009584862300044083326 ..> C_0005049148943034209802 : 
@@ -259,16 +310,7 @@ classDiagram
     C_0009584862300044083326 o-- C_0001417863006499570610 : -chunks_
     C_0009584862300044083326 o-- C_0003408262556741368811 : -chunks_
     C_0009584862300044083326 o-- C_0001417863006499570610 : -uploadQueue_
-    C_0007974188475117411548 ..> C_0014704110374031903259 : 
-    C_0007974188475117411548 ..|> C_0015118057123430156612 : 
-    C_0013865567801987631274 ..> C_0014899929896336503560 : 
-    C_0013865567801987631274 ..> C_0005049148943034209802 : 
-    C_0013865567801987631274 ..> C_0002773998954947599944 : 
-    C_0013865567801987631274 o-- C_0005533647331416267481 : -vao_
-    C_0013865567801987631274 o-- C_0007974188475117411548 : -vbo_
-    C_0013865567801987631274 o-- C_0004105051469622735371 : -ebo_
-    C_0013865567801987631274 o-- C_0010942968540697269095 : -textures_
-    C_0013865567801987631274 o-- C_0014704110374031903259 : -vertices_
+    C_0009584862300044083326 o-- C_0005842108220030593548 : -terrainGenerator_
 
 %% Generated with clang-uml, version 0.6.2-25-g5e2993e
 %% LLVM version Debian clang version 19.1.7 (3+b1)

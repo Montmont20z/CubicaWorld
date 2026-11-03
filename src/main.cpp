@@ -94,37 +94,6 @@ int main(){
         LOG_DEBUG("Debug Mode Enabled");
         glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GLFW_TRUE);
     #endif
-    
-
-    std::vector<Vertex> lightVertices = {
-        // Position              Normal (unused)       Color (unused)        TexCoord (unused)
-        {{-0.1f, -0.1f,  0.1f}, {0.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f}},
-        {{-0.1f, -0.1f, -0.1f}, {0.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f}},
-        {{ 0.1f, -0.1f, -0.1f}, {0.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f}},
-        {{ 0.1f, -0.1f,  0.1f}, {0.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f}},
-        {{-0.1f,  0.1f,  0.1f}, {0.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f}},
-        {{-0.1f,  0.1f, -0.1f}, {0.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f}},
-        {{ 0.1f,  0.1f, -0.1f}, {0.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f}},
-        {{ 0.1f,  0.1f,  0.1f}, {0.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f}},
-    };
-    
-    std::vector<GLuint> lightIndices = {
-        0, 1, 2,
-        0, 2, 3,
-        0, 4, 7,
-        3, 7, 6,
-        3, 6, 2,
-        2, 6, 5,
-        2, 5, 1,
-        1, 5, 4,
-        1, 4, 0,
-        4, 5, 6,
-        4, 6, 7,
-    };
-    
-    // create texture array
-    // std::vector<std::unique_ptr<Texture>> textures;
-    std::vector<std::unique_ptr<Texture>> emptyTextures; // No textures for light
 
     // create the window
     GLFWwindow* window = glfwCreateWindow(screenWidth, screenHeight, "Cubica World", nullptr, nullptr);
@@ -152,8 +121,6 @@ int main(){
 
     glViewport(0,0, screenWidth, screenHeight); // Maps normalized device coordinates (NDC, range [-1,1]) to window pixels. // need to change Screen width & height if resize window
     
-    // Shader blockShader("shaders/basic.vert.glsl", "shaders/basic.frag.glsl");
-    // Shader lightShader("shaders/light.vert.glsl", "shaders/light.frag.glsl");
     Shader chunkShader("shaders/chunk.vert.glsl", "shaders/chunk.frag.glsl");
     
     ChunkManager chunkManager(VIEW_DISTANCE, IS_SINGLE_THREADED);
@@ -175,9 +142,6 @@ int main(){
     // set user pointer and callback
     glfwSetWindowUserPointer(window, &camera);
     glfwSetFramebufferSizeCallback(window, frameBufferCallback);
-    
-    // Mesh cubeMesh(vertices, vertexIndices, std::move(textures), GL_STATIC_DRAW);
-    Mesh lightMesh(lightVertices, lightIndices, std::move(emptyTextures), GL_STATIC_DRAW);
     
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LESS);
@@ -214,19 +178,6 @@ int main(){
         chunkShader.Activate();
         chunkShader.SetVec3("lightPos", lightPos);
         chunkShader.SetVec4("lightColor", lightColor);
-        // blockShader.Activate();
-        // blockShader.SetVec3("lightPos", lightPos);
-        // blockShader.SetVec4("lightColor", lightColor);
-        // blockShader.SetVec3("camPos", camera.Position);
-        // camera.SetUniformMatrix(blockShader, "camMatrix");
-
-        // cubeMesh.Draw(blockShader, camera);
-        
-        // lightShader.Activate();
-        // lightShader.SetMat4("model", lightModel);
-        // lightShader.SetVec4("lightColor", lightColor);
-        // camera.SetUniformMatrix(lightShader, "camMatrix");
-        // lightMesh.Draw(lightShader, camera);
         
         // Loads/unload chunks, drains upload queue, draw everything
         chunkManager.Update(camera.Position, chunkShader, camera);
