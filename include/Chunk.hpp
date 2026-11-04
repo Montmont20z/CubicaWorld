@@ -8,7 +8,7 @@
 #include "Constants.hpp"
 #include "Shader.hpp"
 #include "TerrainGenerator.hpp"
-
+#include "AABB.hpp"
 
 
 struct ChunkCoord {
@@ -75,6 +75,7 @@ public:
     BlockType GetBlock(int x, int y, int z) const; 
     void SetBlock(int x, int y, int z, BlockType type); 
     void MarkDirty(){ state_.store(ChunkState::Dirty, std::memory_order_release); };
+    AABB GetBoundingBox() const;
 
 
 private:

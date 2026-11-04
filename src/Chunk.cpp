@@ -225,3 +225,10 @@ void Chunk::SetBlock(int x, int y, int z, BlockType type) {
     BlockAt(x, y, z) = type;
     MarkDirty();
 }
+
+AABB Chunk::GetBoundingBox() const {
+    const glm::vec3 minP(chunkCoord_.x * CHUNK_SIZE, 0.0f,chunkCoord_.z * CHUNK_SIZE);
+    const glm::vec3 maxP = minP + glm::vec3(CHUNK_SIZE, CHUNK_HEIGHT, CHUNK_SIZE) ;
+    
+    return {minP, maxP};
+};

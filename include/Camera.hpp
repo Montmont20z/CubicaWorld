@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Frustum.hpp"
 #include <glad/glad.h>
 #include <glm/vec3.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -31,4 +32,5 @@ public:
     void ProcessInput(GLFWwindow *window);
 
     void SetViewportSize(int width, int height);
+    Frustum GetFrustum() const { return Frustum(cameraMatrix_); }
 };

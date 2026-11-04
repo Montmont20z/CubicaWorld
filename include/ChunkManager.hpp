@@ -71,4 +71,6 @@ private:
     bool isSingleThreaded_;
     int viewDistance_;
     int maxUploadsPerFrame_ = 4;
+    int drawnChunks_ = 0;
+    int totalChunks_ = 0;
 };

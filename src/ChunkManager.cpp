@@ -1,6 +1,8 @@
 #include "ChunkManager.hpp"
 #include "Chunk.hpp"
 #include "Constants.hpp"
+#include "RenderSettings.hpp"
+#include "Logger.hpp"
 #include <memory>
 #include <mutex>
 #include <vector>
@@ -178,9 +180,16 @@ void ChunkManager::UpdateSingleThreaded(const glm::vec3& cameraPos,const Shader&
     }
 
     // 4. Draw all chunk
+    Frustum frustum = camera.GetFrustum(); // build once per frame, outside the loop
+    drawnChunks_ = 0;
     for (auto& [coord, chunk]: chunks_){
+        if (!frustum.IsVisible(chunk->GetBoundingBox()) && IS_FRUSTUM_CULLING) // skip glDraw call if chunk not within view frustum 
+            continue;
         chunk->Render(shader, camera);
+        ++drawnChunks_;
     }
+    totalChunks_ = static_cast<int>(chunks_.size());
+    // LOG_DEBUG("Total Chunk Drawn: " + std::to_string(drawnChunks_));
 }
 
 void ChunkManager::UpdateMultiThreaded(const glm::vec3& cameraPos,const Shader& shader, const Camera& camera){
@@ -300,10 +309,18 @@ void ChunkManager::UpdateMultiThreaded(const glm::vec3& cameraPos,const Shader& 
     // 5. Draw all uploaded chunk
     // Shader is already Activate()'d by the caller
     {
+        Frustum frustum = camera.GetFrustum(); // build once per frame, outside the loop
+                                                    
         std::lock_guard lock(chunksMutex_);
+        drawnChunks_ = 0;
         for (auto& [coord, chunk] : chunks_){
-            chunk->Render(shader, camera);
-        }
+            if (!frustum.IsVisible(chunk->GetBoundingBox()) && IS_FRUSTUM_CULLING) // skip glDraw call if chunk not within view frustum 
+                continue;
 
+            chunk->Render(shader, camera);
+            ++drawnChunks_;
+        }
+        totalChunks_ = static_cast<int>(chunks_.size());
+        // LOG_DEBUG("Total Chunk Drawn: " + std::to_string(drawnChunks_));
     }
 }
