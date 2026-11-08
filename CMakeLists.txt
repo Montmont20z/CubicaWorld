@@ -36,6 +36,9 @@ add_executable(cubica
     src/ChunkMesh.cpp
     src/TerrainGenerator.cpp
     src/Logger.cpp
+    src/Meshing/BlockSampler.cpp
+    src/Meshing/GreedyMesher.cpp
+    src/Meshing/NaiveMesher.cpp
 )
 
 target_link_libraries(cubica
