@@ -1,5 +1,4 @@
 #include "Texture.hpp"
-#include "Camera.hpp"
 #include <string>
 #include <stb/stb_image.h>
 #include <iostream>

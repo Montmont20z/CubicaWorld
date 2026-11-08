@@ -16,7 +16,8 @@ flat out uint vTexLayer;
 void main(){
     gl_Position = camMatrix * model * vec4(aPos, 1.0);
     vNormal = mat3(transpose(inverse(model))) * aNormal;
-    vAO = 1.0 - float(aAO) * 0.15;// ao=3 → fully bright, ao=0 → darkest
+    vAO = 1.0 - float(3u - aAO) * 0.15;// ao=3 → fully bright, ao=0 → darkest
+    
     vTexCoord = aTexCoord;
     vTexLayer = aTexLayer;
 }

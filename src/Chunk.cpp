@@ -104,6 +104,7 @@ void Chunk::BuildMesh(const ChunkNeighbors& neighbors){
     
     assert(GetChunkState() == ChunkState::Generated || GetChunkState() == ChunkState::Dirty);
 
+    // 1. Check whether a block is air.
     // Return true if the given world-local coord is air (or out of bounds or unloaded neighbor)
     // For cross-chunk border queires, falls back to the neighbor pointer.
     // If neighbor is null (not loaded), we treat the block as SOLID to avoid emitting
@@ -130,6 +131,84 @@ void Chunk::BuildMesh(const ChunkNeighbors& neighbors){
         return neighbor->GetBlock(nx, y, nz) == BlockType::Air;
     };
     
+    // ------------------------------------------------------------------
+    // 2. Return the texture tile of visible face.
+    //
+    // -1 means there is no face to render
+    // 0-255 represents the texture tile
+    // ------------------------------------------------------------------
+    auto getVisibleTexture = [&](Face face, int slice, int u, int v) -> int {
+        int x = 0, y = 0, z = 0;
+        int nx = 0, ny = 0, nz = 0;
+        
+        switch (face){
+            case Face::Right:
+                x = slice; y = v; z = u;
+                
+                nx = x + 1;
+                ny = y;
+                nz = z;
+                break;
+
+            case Face::Left:
+                x = slice; y = v; z = u;
+                
+                nx = x - 1;
+                ny = y;
+                nz = z;
+                break;
+        
+            case Face::Top:
+                x = u;
+                y = slice;
+                z = v;
+                
+                nx = x;
+                ny = y + 1 ;
+                nz = z;
+                break;
+
+            case Face::Bottom:
+                x = u;
+                y = slice;
+                z = v;
+                
+                nx = x;
+                ny = y - 1 ;
+                nz = z;
+                break;
+            case Face::Front:
+                x = u;
+                y = v;
+                z = slice;
+                
+                nx = x;
+                ny = y;
+                nz = z + 1;
+                break;
+
+            case Face::Back:
+                x = u;
+                y = v;
+                z = slice;
+                
+                nx = x;
+                ny = y;
+                nz = z - 1;
+                break;
+        }
+        const BlockType block = BlockAt(x, y, z);
+        
+        if (block == BlockType::Air)
+            return -1;
+        
+        // Only emit faces exposed to air.
+        if (!isAir(nx, ny, nz))
+            return -1;
+        
+        return static_cast<int>(TileFor(block, face));
+    };
+    
     auto appendFace = [](const ChunkVertex face[4],uint8_t tile, int bx, int by, int bz,
                                     std::vector<ChunkVertex>& verts, std::vector<GLuint>& idxs)
     {
@@ -152,35 +231,278 @@ void Chunk::BuildMesh(const ChunkNeighbors& neighbors){
     MeshData data;
     data.vertices.reserve(4096);
     data.indices.reserve(6144);
-    // Temporary hardcoded tiles (index = row*16 + col, see note below)
-    constexpr uint8_t TILE_TOP = 0, TILE_SIDE = 1, TILE_BOTTOM = 2;
-    
-    for (int x = 0; x < CHUNK_SIZE; ++x) {
-        for (int y = 0; y < CHUNK_HEIGHT; ++y) {
-            for (int z = 0; z < CHUNK_SIZE; ++z) {
-                const BlockType b = BlockAt(x,y,z);
-                if (b == BlockType::Air) continue;
-                // Add face to mesh
-                if (FACE_CULLING){
-                    if (isAir(x+1, y, z)) appendFace(RIGHT_FACE, TileFor(b, Face::Right),  x,y,z, data.vertices, data.indices);
-                    if (isAir(x-1, y, z)) appendFace(LEFT_FACE, TileFor(b, Face::Left), x, y, z, data.vertices, data.indices);
-                    if (isAir(x, y+1, z)) appendFace(TOP_FACE,TileFor(b, Face::Top), x, y, z, data.vertices, data.indices);
-                    if (isAir(x, y-1, z)) appendFace(BOTTOM_FACE, TileFor(b, Face::Bottom), x, y, z, data.vertices, data.indices);
-                    if (isAir(x, y, z+1)) appendFace(FRONT_FACE,TileFor(b, Face::Front),  x, y, z, data.vertices, data.indices);
-                    if (isAir(x, y, z-1)) appendFace(BACK_FACE, TileFor(b, Face::Back), x, y, z, data.vertices, data.indices);
-                }
-                else { // Without face culling
-                    appendFace(RIGHT_FACE, TileFor(b, Face::Right),  x,y,z, data.vertices, data.indices);
-                    appendFace(LEFT_FACE, TileFor(b, Face::Left), x, y, z, data.vertices, data.indices);
-                    appendFace(TOP_FACE,TileFor(b, Face::Top), x, y, z, data.vertices, data.indices);
-                    appendFace(BOTTOM_FACE, TileFor(b, Face::Bottom), x, y, z, data.vertices, data.indices);
-                    appendFace(FRONT_FACE,TileFor(b, Face::Front),  x, y, z, data.vertices, data.indices);
-                    appendFace(BACK_FACE, TileFor(b, Face::Back), x, y, z, data.vertices, data.indices);
-                }
 
+    // ---------------------------------------------------------
+    // 3. Emit one rectangular quad.
+    //
+    // u and v describe the starting position in the 2D mask.
+    // width and height describe how many blocks are merged.
+    // ---------------------------------------------------------
+    auto emitQuad = [&](Face face, int slice, int u, int v, int width, int height, uint8_t tile){
+
+        glm::vec3 positions[4];
+        glm::vec2 uvs[4];
+
+        glm::vec3 normal(0.0f);
+        
+        const float S = static_cast<float>(slice);
+        const float U = static_cast<float>(u);
+        const float V = static_cast<float>(v);
+        const float W = static_cast<float>(width);
+        const float H = static_cast<float>(height);
+
+        switch (face) {
+            case Face::Right:  // +X
+                normal = {1,0,0};
+                
+                positions[0] = { S + 0.5f, V    , U - 0.5f};
+                positions[1] = { S + 0.5f, V + H, U - 0.5f};
+                positions[2] = { S + 0.5f, V + H, U + W - 0.5f};
+                positions[3] = { S + 0.5f, V    , U + W - 0.5f};
+
+                uvs[0] = {0,0};
+                uvs[1] = {0,H};
+                uvs[2] = {W,H};
+                uvs[3] = {W,0};
+                break;
+            case Face::Left:  // -X
+                normal = {-1,0,0};
+                
+                positions[0] = { S - 0.5f, V    , U + W - 0.5f};
+                positions[1] = { S - 0.5f, V + H, U + W - 0.5f};
+                positions[2] = { S - 0.5f, V + H, U - 0.5f};
+                positions[3] = { S - 0.5f, V    , U - 0.5f};
+
+                uvs[0] = {0,0};
+                uvs[1] = {0,H};
+                uvs[2] = {W,H};
+                uvs[3] = {W,0};
+                break;
+            case Face::Top:  // +Y
+                normal = {0,1,0};
+                
+                positions[0] = { U - 0.5f    , S + 1.0f, V + H - 0.5f};
+                positions[1] = { U + W - 0.5f, S + 1.0f, V + H - 0.5f};
+                positions[2] = { U + W - 0.5f, S + 1.0f, V - 0.5f};
+                positions[3] = { U - 0.5f    , S + 1.0f, V - 0.5f};
+
+                uvs[0] = {0,0};
+                uvs[1] = {W,0};
+                uvs[2] = {W,H};
+                uvs[3] = {0,H};
+                break;
+            case Face::Bottom:  // -Y
+                normal = {0,-1,0};
+                
+                positions[0] = { U - 0.5f    , S, V - 0.5f};
+                positions[1] = { U + W - 0.5f, S, V - 0.5f};
+                positions[2] = { U + W - 0.5f, S, V + H - 0.5f};
+                positions[3] = { U - 0.5f    , S, V + H - 0.5f};
+
+                uvs[0] = {0,0};
+                uvs[1] = {W,0};
+                uvs[2] = {W,H};
+                uvs[3] = {0,H};
+                break;
+            case Face::Front:  // +Z
+                normal = {0,0,1};
+                
+                positions[0] = { U - 0.5f,     V,     S + 0.5f };
+                positions[1] = { U + W - 0.5f, V,     S + 0.5f };
+                positions[2] = { U + W - 0.5f, V + H, S + 0.5f };
+                positions[3] = { U - 0.5f,     V + H, S + 0.5f };
+
+                uvs[0] = {0,0};
+                uvs[1] = {W,0};
+                uvs[2] = {W,H};
+                uvs[3] = {0,H};
+                break;
+            case Face::Back:  // -Z
+                normal = {0,0,-1};
+                
+                positions[0] = { U + W - 0.5f, V + H, S - 0.5f };
+                positions[1] = { U - 0.5f    , V + H, S - 0.5f };
+                positions[2] = { U - 0.5f    , V    , S - 0.5f };
+                positions[3] = { U + W - 0.5f, V    , S - 0.5f };
+
+                uvs[0] = {0,H};
+                uvs[1] = {W,H};
+                uvs[2] = {W,0};
+                uvs[3] = {0,0};
+                break;
+            default: 
+                assert(false && "Invalid Face");
+        }
+
+        const GLuint base = static_cast<GLuint>(data.vertices.size());
+        
+        for (int i = 0; i < 4; ++i){
+            data.vertices.push_back({
+                positions[i],
+                normal,
+                uvs[i],
+                tile,
+                3
+            });
+        }
+
+        // Two CCW triangles: 0-1-2, 2-3-0
+        data.indices.push_back(base + 0); data.indices.push_back(base + 1); data.indices.push_back(base + 2);
+        data.indices.push_back(base + 2); data.indices.push_back(base + 3); data.indices.push_back(base + 0);
+    };
+    
+    if (GREEDY_MESHING){
+        // ---------------------------------------------------------
+        // 4. Greedy meshing.
+        // ---------------------------------------------------------
+        const Face faces[] = {
+            Face::Right,
+            Face::Left,
+            Face::Top,
+            Face::Bottom,
+            Face::Front,
+            Face::Back
+        };
+        
+        for (Face face: faces){
+            int sliceCount = 0;
+            int uSize = 0;
+            int vSize = 0;
+            
+            // Decide which axis is fixed and which axes form
+            // the 2D mask.
+            // max possible size for Right, Left, Front, Back is CHUNK_SIZE * CHUNK_SIZE
+            // max possible size for Top, Bottom is CHUNK_SIZE * CHUNK_HEIGHT
+            switch (face) {
+                case Face::Right:
+                case Face::Left:
+                    sliceCount = CHUNK_SIZE;
+                    uSize = CHUNK_SIZE;   // Z
+                    vSize = CHUNK_HEIGHT; // Y
+                    break;
+
+                case Face::Top:
+                case Face::Bottom:
+                    sliceCount = CHUNK_HEIGHT;
+                    uSize = CHUNK_SIZE;   // X
+                    vSize = CHUNK_SIZE;   // Z
+                    break;
+
+                case Face::Front:
+                case Face::Back:
+                    sliceCount = CHUNK_SIZE;
+                    uSize = CHUNK_SIZE;   // X
+                    vSize = CHUNK_HEIGHT; // Y
+                    break;
+            }
+            
+            // The mask stores texture IDs.
+            // -1 means empty / no visible face.
+            std::vector<int> mask(uSize * vSize, -1);
+            
+            // Process each 2D slice
+            for (int slice = 0; slice < sliceCount; ++slice) {
+                // empty fill mask
+                std::fill(mask.begin(), mask.end(), -1);
+                
+                // -------------------------------------------------
+                // Step A: Build the visibility mask.
+                // -------------------------------------------------
+                for (int v = 0; v < vSize; ++v){
+                    for (int u = 0; u < uSize; ++u) {
+                        mask[v * uSize + u] = getVisibleTexture(face, slice, u, v); // fill up the mask with textureId
+                    }
+                }
+                
+                // -------------------------------------------------
+                // Step B: Find and merge rectangles.
+                // -------------------------------------------------
+                for (int v = 0; v < vSize; ++v){
+                    for (int u = 0; u < uSize; ++u) {
+                        const int index = v * uSize + u;
+                        const int tile = mask[index];
+                        
+                        if (tile < 0)
+                            continue; // skip if texture is -1(empty)
+                            
+                        // -----------------------------------------
+                        // Expand horizontally.
+                        // Find consecutive faces with the same tile.
+                        // -----------------------------------------
+                        int width = 1;
+                        while (u + width < uSize && mask[index + width] == tile){ // check if current mask offset == first tile's texture, continue until uSize
+                            ++width;
+                        }
+                        
+                        // -----------------------------------------
+                        // Expand vertically.
+                        // The entire next row must match.
+                        // -----------------------------------------
+                        int height = 1;
+                        while (v + height < vSize){
+                            bool canExpand = true;
+                            
+                            for (int du = 0; du < width; ++du){
+                                if (mask[(v + height) * uSize + u + du] != tile){ // goes through the entire row & column of mask to check if there is any unmatch texture
+                                    canExpand = false;
+                                    break;
+                                }
+                            }
+                            if (!canExpand)
+                                break;
+
+                            ++height;
+                        }
+
+                        // -----------------------------------------
+                        // Mark merged cells as consumed.
+                        // -----------------------------------------
+                        for (int dv = 0; dv < height; ++dv){
+                            for (int du = 0; du < width; ++du)
+                            {
+                                mask[(v + dv) * uSize + u + du] = -1;
+                            }
+                        }
+                        
+                        // -----------------------------------------
+                        // Emit one large quad.
+                        // -----------------------------------------
+                        emitQuad(face, slice, u, v, width, height, tile);
+                    }
+                }
             }
         }
-    
+    } else
+    { // Temporary hardcoded tiles (index = row*16 + col, see note below)
+        constexpr uint8_t TILE_TOP = 0, TILE_SIDE = 1, TILE_BOTTOM = 2;
+        
+        for (int x = 0; x < CHUNK_SIZE; ++x) {
+            for (int y = 0; y < CHUNK_HEIGHT; ++y) {
+                for (int z = 0; z < CHUNK_SIZE; ++z) {
+                    const BlockType b = BlockAt(x,y,z);
+                    if (b == BlockType::Air) continue;
+                    // Add face to mesh
+                    if (FACE_CULLING){
+                        if (isAir(x+1, y, z)) appendFace(RIGHT_FACE, TileFor(b, Face::Right),  x,y,z, data.vertices, data.indices);
+                        if (isAir(x-1, y, z)) appendFace(LEFT_FACE, TileFor(b, Face::Left), x, y, z, data.vertices, data.indices);
+                        if (isAir(x, y+1, z)) appendFace(TOP_FACE,TileFor(b, Face::Top), x, y, z, data.vertices, data.indices);
+                        if (isAir(x, y-1, z)) appendFace(BOTTOM_FACE, TileFor(b, Face::Bottom), x, y, z, data.vertices, data.indices);
+                        if (isAir(x, y, z+1)) appendFace(FRONT_FACE,TileFor(b, Face::Front),  x, y, z, data.vertices, data.indices);
+                        if (isAir(x, y, z-1)) appendFace(BACK_FACE, TileFor(b, Face::Back), x, y, z, data.vertices, data.indices);
+                    }
+                    else { // Without face culling
+                        appendFace(RIGHT_FACE, TileFor(b, Face::Right),  x,y,z, data.vertices, data.indices);
+                        appendFace(LEFT_FACE, TileFor(b, Face::Left), x, y, z, data.vertices, data.indices);
+                        appendFace(TOP_FACE,TileFor(b, Face::Top), x, y, z, data.vertices, data.indices);
+                        appendFace(BOTTOM_FACE, TileFor(b, Face::Bottom), x, y, z, data.vertices, data.indices);
+                        appendFace(FRONT_FACE,TileFor(b, Face::Front),  x, y, z, data.vertices, data.indices);
+                        appendFace(BACK_FACE, TileFor(b, Face::Back), x, y, z, data.vertices, data.indices);
+                    }
+
+                }
+            }
+        
+        }
     }
     pendingMesh_ = std::move(data);
     auto expected = ChunkState::Generated;

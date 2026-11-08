@@ -17,8 +17,14 @@ void main(){
     uint row = (uint(atlasTiles) - 1u) - (vTexLayer / uint(atlasTiles));
     uint col = vTexLayer % uint(atlasTiles);
     // uint row = vTexLayer / uint(atlasTiles);
-    vec2 uv = (vec2(col, row) + vTexCoord) / float(atlasTiles);
+
+    vec2 tileUV = fract(vTexCoord);
+    vec2 uv = (vec2(col, row) + tileUV) / float(atlasTiles);
     
+    // derivatives of the unwrapped coord, otherwise fract() causes mip seams
+    vec2 dx = dFdx(vTexCoord) / float(atlasTiles);
+    vec2 dy = dFdy(vTexCoord) / float(atlasTiles);
+
     vec3 albedo = texture(tex0, uv).rgb;
 
     vec3 lightDir = normalize(vec3(1.0, 2.0, 1.0));
