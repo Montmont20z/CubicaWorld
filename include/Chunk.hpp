@@ -76,6 +76,7 @@ public:
     void SetBlock(int x, int y, int z, BlockType type); 
     void MarkDirty(){ state_.store(ChunkState::Dirty, std::memory_order_release); };
     AABB GetBoundingBox() const;
+    int GetSurfaceHeight(int worldX, int worldZ) const;
 
 
 private:
@@ -91,4 +92,5 @@ private:
 
     ChunkMesh chunkMesh_;                                        // GPU object, main thread only
     MeshData pendingMesh_;
+    int surfaceHeight_[CHUNK_SIZE][CHUNK_SIZE];
 };

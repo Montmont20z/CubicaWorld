@@ -3,6 +3,10 @@
 #include "Constants.hpp"
 #include "RenderSettings.hpp"
 #include "Logger.hpp"
+#include "OcclusionCuller.hpp"
+#include <algorithm>
+#include <cmath>
+#include <cstddef>
 #include <memory>
 #include <mutex>
 #include <vector>
@@ -109,7 +113,7 @@ void ChunkManager::UpdateSingleThreaded(const glm::vec3& cameraPos,const Shader&
     const int camChunkX = static_cast<int>(std::floor(cameraPos.x / CHUNK_SIZE));
     const int camChunkZ = static_cast<int>(std::floor(cameraPos.z / CHUNK_SIZE));
 
-    // 1. Load Chunk that should exsist but dont
+    // 1. Load Chunk that should exist but dont
     for (int dx = -viewDistance_; dx <= viewDistance_; ++dx){
        for (int dz = -viewDistance_; dz <= viewDistance_; ++dz) {
            ChunkCoord coord{ camChunkX + dx, camChunkZ + dz  };
@@ -143,7 +147,6 @@ void ChunkManager::UpdateSingleThreaded(const glm::vec3& cameraPos,const Shader&
                 if (chunks_.count(coord)) continue; // skip if the chunk already build
 
                 // Allocate Chunk (no GL yet - happens on Upload if Ready)
-                // auto chunk =  std::make_unique<Chunk>(coord);
                 rawChunk = MakeChunk(coord);
                 chunks_[coord] = rawChunk;
             }
@@ -178,18 +181,137 @@ void ChunkManager::UpdateSingleThreaded(const glm::vec3& cameraPos,const Shader&
            chunk->UploadIfReady(); // push dirty mesh to GPU
        } 
     }
-
-    // 4. Draw all chunk
+    
+    // 4. Filter all chunk that does not pass the optimization filter & Sort for rendering order
     Frustum frustum = camera.GetFrustum(); // build once per frame, outside the loop
-    drawnChunks_ = 0;
+
+    std::vector<RenderCandidate> candidates;
+    candidates.reserve(chunks_.size());
+
+    // push back chunk into candidates if it pass all optimization filter
     for (auto& [coord, chunk]: chunks_){
+        if (chunk->GetChunkState() != ChunkState::Uploaded)
+            continue;
+
         if (!frustum.IsVisible(chunk->GetBoundingBox()) && IS_FRUSTUM_CULLING) // skip glDraw call if chunk not within view frustum 
             continue;
-        chunk->Render(shader, camera);
+        
+        const AABB bounds = chunk->GetBoundingBox(); 
+
+        // find the closest point between camera and chunk footprint
+        const float closestX = std::clamp(
+            cameraPos.x,
+            bounds.min.x,
+            bounds.max.x
+        );
+        const float closestZ = std::clamp(
+            cameraPos.z,
+            bounds.min.z,
+            bounds.max.z
+        );
+        const float dx = closestX - cameraPos.x;
+        const float dz = closestZ - cameraPos.z;
+
+        const float nearestDistanceSq = dx * dx + dz * dz;
+
+        candidates.push_back({
+            coord,
+            chunk,
+            nearestDistanceSq,
+            true
+        }); 
+    }
+    // Sort chunks from nearest to farthest.
+    std::sort(
+        candidates.begin(),
+        candidates.end(),
+        [](const RenderCandidate& a, const RenderCandidate& b){
+            return a.nearestDistanceSq < b.nearestDistanceSq; // sort by distanceSq ascending
+        }
+    );
+    
+    // Generate Terrain sample 
+    std::vector<HorizonSample> samples;
+
+    for (std::size_t i = 0; i < candidates.size(); ++i){
+        const RenderCandidate& candidate = candidates[i];
+        for (int x = 0; x < CHUNK_SIZE; ++x){
+            for (int z = 0; z < CHUNK_SIZE; ++z){
+                
+                const float worldX = candidate.coord.x * CHUNK_SIZE + x + 0.5f;
+                const float worldZ = candidate.coord.z * CHUNK_SIZE + z + 0.5f;
+
+                const float worldY = static_cast<float>(candidate.chunk->GetSurfaceHeight(worldX, worldZ));
+                
+                const float dx = worldX - cameraPos.x;
+                const float dz = worldZ - cameraPos.z;
+                
+                const float distanceSq = dx * dx + dz * dz;
+                
+                // Avoid unstable elevation calculations near the camera.
+                if (distanceSq < 1.0f){
+                    candidates[i].visible = true;
+                    continue;
+                }
+                
+                const float distance = std::sqrt(distanceSq);
+
+                // Elevation relative to the camera's horizontal plane.
+                const float elevation = std::atan2(worldY - cameraPos.y, distance);
+
+                const int bin = GetHorizonBin(dx, dz);
+
+                samples.push_back({
+                    distanceSq,
+                    elevation,
+                    bin,
+                    i
+                });
+            }
+        }
+    }
+    
+    // Sort terrain samples by distance
+    std::sort(
+        samples.begin(),
+        samples.end(),
+        [](const HorizonSample& a,
+           const HorizonSample& b)
+        {
+            return a.distanceSq < b.distanceSq;
+        }
+    );
+
+    
+    // Horizontal culling 
+    Horizon horizon;
+    horizon.fill(-PI * 0.5f);
+    
+    for (const HorizonSample& sample: samples){
+        const float previousHorizon = horizon[sample.bin];
+
+        // Is this terrain sample potentially visible?
+        if (sample.elevation >= previousHorizon - HORIZON_MARGIN){
+            candidates[sample.candidateIndex].visible = true;
+        }
+        
+        // Update the skyline if this sample extends it.
+        if (sample.elevation > previousHorizon){
+            horizon[sample.bin] = sample.elevation;
+        }
+    }
+    
+    // 5. Draw all chunk
+    drawnChunks_ = 0;
+    for (RenderCandidate candidate: candidates){
+        if (!candidate.visible) // skip render if not visible
+            continue;
+
+        candidate.chunk->Render(shader, camera);
         ++drawnChunks_;
     }
     totalChunks_ = static_cast<int>(chunks_.size());
-    // LOG_DEBUG("Total Chunk Drawn: " + std::to_string(drawnChunks_));
+    LOG_DEBUG("Total Chunk Drawn: " + std::to_string(drawnChunks_));
 }
 
 void ChunkManager::UpdateMultiThreaded(const glm::vec3& cameraPos,const Shader& shader, const Camera& camera){
@@ -208,7 +330,6 @@ void ChunkManager::UpdateMultiThreaded(const glm::vec3& cameraPos,const Shader& 
        for (int dz = -viewDistance_; dz <= viewDistance_; ++dz) {
            ChunkCoord coord{ camChunkX + dx, camChunkZ + dz  };
            
-
            /* Implement Spiral Outward Chunk loading order
            std::vector<ChunkCoord> loadQueue;
 

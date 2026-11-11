@@ -2,7 +2,6 @@
 #include <GLFW/glfw3.h>
 #include <math.h>
 #include <stb/stb_image.h>
-#include <vector>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/vec3.hpp>
 #include <glm/gtc/type_ptr.hpp>

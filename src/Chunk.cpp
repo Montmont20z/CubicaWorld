@@ -88,6 +88,9 @@ void Chunk::Generate(const TerrainGenerator& generator){
             const int worldZ = chunkCoord_.z * CHUNK_SIZE + z;
             
             TerrainColumn column = generator.GenerateColumn(worldX, worldZ);
+            
+            // Store surface height
+            surfaceHeight_[x][z] = column.surfaceY;
 
             // fill up blocks in Current Chunk with Terrain Column
             for (int y = 0; y < CHUNK_HEIGHT; ++y) {
@@ -166,3 +169,8 @@ AABB Chunk::GetBoundingBox() const {
     
     return {minP, maxP};
 };
+
+
+int Chunk::GetSurfaceHeight(int chunkX, int chunkZ) const {
+    return surfaceHeight_[chunkX][chunkZ];
+}

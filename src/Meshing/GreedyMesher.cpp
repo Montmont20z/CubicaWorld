@@ -10,7 +10,7 @@
 
 namespace meshing {
 namespace {
-    constexpr int AO_FULL = 3; // placeholder until the AO pass exists
+    constexpr int AO_FULL = 2; // placeholder until the AO pass exists
 }
 
 GreedyMesher::GreedyMesher(const BlockSampler& sampler)
