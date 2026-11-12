@@ -5,8 +5,10 @@
 #include "Logger.hpp"
 #include "OcclusionCuller.hpp"
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstddef>
+#include <latch>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -19,8 +21,9 @@ ChunkManager::ChunkManager(int viewDistance, bool isSingleThreaded)
     // Spawn threads on initialize
     // Spawn N-1 worker threads (leave one core for main thread)
     if (!isSingleThreaded_){ // skip thread initialize if single thread
-        const int numWorkers = std::max(1u, std::thread::hardware_concurrency() - 1); 
-        for (int i = 0; i < numWorkers; ++i){
+        const unsigned int hc = std::thread::hardware_concurrency();
+        const unsigned int numWorkers = hc > 2 ? hc - 2 : 1;
+        for (unsigned int i = 0; i < numWorkers; ++i){
            workers_.emplace_back(&ChunkManager::WorkerLoop, this);
         }
     }
@@ -266,7 +269,7 @@ void ChunkManager::UpdateSingleThreaded(const glm::vec3& cameraPos,const Shader&
                     // Elevation relative to the camera's horizontal plane.
                     const float elevation = std::atan2(worldY - cameraPos.y, distance);
 
-                    const int bin = GetHorizonBin(dx, dz);
+                    const int bin = GetAzimuthBin(dx, dz);
 
                     samples.push_back({
                         distanceSq,
@@ -290,7 +293,7 @@ void ChunkManager::UpdateSingleThreaded(const glm::vec3& cameraPos,const Shader&
         );
 
         
-        // Horizontal culling 
+        // Horizon culling 
         Horizon horizon;
         horizon.fill(-PI * 0.5f);
         
@@ -489,7 +492,7 @@ void ChunkManager::UpdateMultiThreaded(const glm::vec3& cameraPos,const Shader& 
         );
 
         // Generate Terrain sample 
-        std::vector<HorizonSample> samples;
+        SamplesByBin samplesByBin;
 
         for (std::size_t i = 0; i < candidates.size(); ++i){
             const RenderCandidate& candidate = candidates[i];
@@ -521,9 +524,9 @@ void ChunkManager::UpdateMultiThreaded(const glm::vec3& cameraPos,const Shader& 
                     // Elevation relative to the camera's horizontal plane.
                     const float elevation = std::atan2(worldY - cameraPos.y, distance);
 
-                    const int bin = GetHorizonBin(dx, dz);
+                    const int bin = GetAzimuthBin(dx, dz);
 
-                    samples.push_back({
+                    samplesByBin[bin].push_back({
                         distanceSq,
                         elevation,
                         bin,
@@ -533,33 +536,63 @@ void ChunkManager::UpdateMultiThreaded(const glm::vec3& cameraPos,const Shader& 
             }
         }
         
-        // Sort terrain samples by distance
-        std::sort(
-            samples.begin(),
-            samples.end(),
-            [](const HorizonSample& a,
-               const HorizonSample& b)
-            {
-                return a.distanceSq < b.distanceSq;
-            }
-        );
-
         
-        // Horizontal culling 
-        Horizon horizon;
-        horizon.fill(-PI * 0.5f);
+        // Sample & Horizontal culling 
+        // Each bin has its own output.
+        // Workers never modify candidates directly.
+        std::array<std::vector<std::size_t>, HORIZONTAL_BIN_COUNT> visibleByBin;
         
-        for (const HorizonSample& sample: samples){
-            const float previousHorizon = horizon[sample.bin];
-
-            // Is this terrain sample potentially visible?
-            if (sample.elevation >= previousHorizon - HORIZON_MARGIN){
-                candidates[sample.candidateIndex].visible = true;
-            }
+        const std::size_t taskCount = std::min(workers_.size(), static_cast<std::size_t>(HORIZONTAL_BIN_COUNT));
+        
+        std::latch finished(static_cast<std::ptrdiff_t>(taskCount)); // one time thread barrier
+        for (std::size_t task = 0; task < taskCount; ++task){
+            // setup iteration variable for parallel work
+            const std::size_t firstBin = HORIZONTAL_BIN_COUNT * task / taskCount;
+            const std::size_t lastBin = HORIZONTAL_BIN_COUNT * (task + 1) / taskCount;
             
-            // Update the skyline if this sample extends it.
-            if (sample.elevation > previousHorizon){
-                horizon[sample.bin] = sample.elevation;
+            EnqueueWork([&, firstBin, lastBin](){
+                for (std::size_t bin = firstBin; bin < lastBin; ++bin){
+
+                    auto& binSamples = samplesByBin[bin];
+                
+                    // Maintain near-to-far processing order.
+                    std::sort(
+                        binSamples.begin(),
+                        binSamples.end(),
+                        [](const HorizonSample& a,
+                           const HorizonSample& b) {
+                            return a.distanceSq < b.distanceSq;
+                        }
+                    );
+                    
+                    // Independent skyline for this angular bin.
+                    float horizon = -PI * 0.5f;
+                    
+                    for (const HorizonSample& sample: binSamples){
+                        const float previousHorizon = horizon;
+
+                        if (sample.elevation >= previousHorizon - HORIZON_MARGIN){
+                            // record result locally
+                            visibleByBin[bin].push_back(sample.candidateIndex);
+                        }
+                        
+                        // Update skyline
+                        if (sample.elevation > horizon){
+                            horizon = sample.elevation;
+                        } 
+                    }
+                }
+                finished.count_down();
+            });
+
+        }
+        // Wait until all culling jobs finish before rendering.
+        finished.wait(); // join all forked thread, explicit barrier
+
+        // Merge results on the main thread.
+        for (const auto& binResults : visibleByBin) {
+            for (std::size_t candidateIndex : binResults) {
+                candidates[candidateIndex].visible = true;
             }
         }
     }
@@ -578,9 +611,9 @@ void ChunkManager::UpdateMultiThreaded(const glm::vec3& cameraPos,const Shader& 
             ++drawnChunks_;
         }
         totalChunks_ = static_cast<int>(chunks_.size());
-        if (prevChunkCount_ != drawnChunks_){
-            LOG_DEBUG("Total Chunk Drawn: " + std::to_string(drawnChunks_) + " \nTotal Chunk: " + std::to_string(totalChunks_));
-            prevChunkCount_ = drawnChunks_;
-        }
+        // if (prevChunkCount_ != drawnChunks_){
+        //     LOG_DEBUG("Total Chunk Drawn: " + std::to_string(drawnChunks_) + " \nTotal Chunk: " + std::to_string(totalChunks_));
+        //     prevChunkCount_ = drawnChunks_;
+        // }
     }
 }
