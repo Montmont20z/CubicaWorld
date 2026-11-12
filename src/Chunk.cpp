@@ -1,6 +1,7 @@
 #include "Chunk.hpp"
 #include "BlockType.hpp"
 #include "Constants.hpp"
+#include "Logger.hpp"
 #include "MeshData.hpp"
 #include "ChunkMesh.hpp"
 #include "RenderSettings.hpp"
@@ -15,6 +16,7 @@
 #include <glm/fwd.hpp>
 #include <glm/gtx/transform.hpp>
 #include <memory>
+#include <string>
 #include <vector>
 #include <glm/gtc/noise.hpp>
 
@@ -171,6 +173,12 @@ AABB Chunk::GetBoundingBox() const {
 };
 
 
-int Chunk::GetSurfaceHeight(int chunkX, int chunkZ) const {
-    return surfaceHeight_[chunkX][chunkZ];
+int Chunk::GetSurfaceHeight(int worldX, int worldZ) const {
+    const int localX = worldX - chunkCoord_.x * CHUNK_SIZE;
+    const int localZ = worldZ - chunkCoord_.z * CHUNK_SIZE;
+
+    assert(localX >= 0 && localX < CHUNK_SIZE);
+    assert(localZ >= 0 && localZ < CHUNK_SIZE);
+
+    return surfaceHeight_[localX][localZ];
 }

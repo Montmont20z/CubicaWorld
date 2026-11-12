@@ -73,4 +73,5 @@ private:
     int maxUploadsPerFrame_ = 4;
     int drawnChunks_ = 0;
     int totalChunks_ = 0;
+    int prevChunkCount_ = -1;
 };
