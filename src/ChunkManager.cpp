@@ -194,7 +194,7 @@ void ChunkManager::UpdateSingleThreaded(const glm::vec3& cameraPos,const Shader&
         if (chunk->GetChunkState() != ChunkState::Uploaded)
             continue;
 
-        if (!frustum.IsVisible(chunk->GetBoundingBox()) && IS_FRUSTUM_CULLING) // skip glDraw call if chunk not within view frustum 
+        if (IS_FRUSTUM_CULLING && !frustum.IsVisible(chunk->GetBoundingBox()) ) // skip glDraw call if chunk not within view frustum 
             continue;
        
         const AABB bounds = chunk->GetBoundingBox(); 
@@ -438,21 +438,149 @@ void ChunkManager::UpdateMultiThreaded(const glm::vec3& cameraPos,const Shader& 
         ++uploads; 
     }
 
-    // 5. Draw all uploaded chunk
+    // 5. Filter all chunk that does not pass the optimization filter & Sort for rendering order
+    Frustum frustum = camera.GetFrustum(); // build once per frame, outside the loop
+
+    std::vector<RenderCandidate> candidates;
+    candidates.reserve(chunks_.size());
+
+    // push back chunk into candidates if it pass all optimization filter
+    for (auto& [coord, chunk]: chunks_){
+        if (chunk->GetChunkState() != ChunkState::Uploaded)
+            continue;
+
+        if (IS_FRUSTUM_CULLING && !frustum.IsVisible(chunk->GetBoundingBox()) ) // skip glDraw call if chunk not within view frustum 
+            continue;
+       
+        const AABB bounds = chunk->GetBoundingBox(); 
+
+        // find the closest point between camera and chunk footprint
+        const float closestX = std::clamp(
+            cameraPos.x,
+            bounds.min.x,
+            bounds.max.x
+        );
+        const float closestZ = std::clamp(
+            cameraPos.z,
+            bounds.min.z,
+            bounds.max.z
+        );
+        const float dx = closestX - cameraPos.x;
+        const float dz = closestZ - cameraPos.z;
+
+        const float nearestDistanceSq = dx * dx + dz * dz;
+
+        candidates.push_back({
+            coord,
+            chunk,
+            nearestDistanceSq,
+            !IS_HORIZON_CULLING 
+        }); 
+    }
+    
+    if (IS_HORIZON_CULLING){
+        // Sort chunks from nearest to farthest.
+        std::sort(
+            candidates.begin(),
+            candidates.end(),
+            [](const RenderCandidate& a, const RenderCandidate& b){
+                return a.nearestDistanceSq < b.nearestDistanceSq; // sort by distanceSq ascending
+            }
+        );
+
+        // Generate Terrain sample 
+        std::vector<HorizonSample> samples;
+
+        for (std::size_t i = 0; i < candidates.size(); ++i){
+            const RenderCandidate& candidate = candidates[i];
+            for (int x = 0; x < CHUNK_SIZE; ++x){
+                for (int z = 0; z < CHUNK_SIZE; ++z){
+                    
+                    const float sampleWorldX = candidate.coord.x * CHUNK_SIZE + x ;
+                    const float sampleWorldZ = candidate.coord.z * CHUNK_SIZE + z ;
+
+                    // Center of the block, used for distance calculations.
+                    const float worldX = sampleWorldX + 0.5f;
+                    const float worldZ = sampleWorldZ + 0.5f;
+
+                    const float worldY = static_cast<float>(candidate.chunk->GetSurfaceHeight(sampleWorldX, sampleWorldZ));
+                    
+                    const float dx = worldX - cameraPos.x;
+                    const float dz = worldZ - cameraPos.z;
+                    
+                    const float distanceSq = dx * dx + dz * dz;
+                    
+                    // Avoid unstable elevation calculations near the camera.
+                    if (distanceSq < 1.0f){
+                        candidates[i].visible = true;
+                        continue;
+                    }
+                    
+                    const float distance = std::sqrt(distanceSq);
+
+                    // Elevation relative to the camera's horizontal plane.
+                    const float elevation = std::atan2(worldY - cameraPos.y, distance);
+
+                    const int bin = GetHorizonBin(dx, dz);
+
+                    samples.push_back({
+                        distanceSq,
+                        elevation,
+                        bin,
+                        i
+                    });
+                }
+            }
+        }
+        
+        // Sort terrain samples by distance
+        std::sort(
+            samples.begin(),
+            samples.end(),
+            [](const HorizonSample& a,
+               const HorizonSample& b)
+            {
+                return a.distanceSq < b.distanceSq;
+            }
+        );
+
+        
+        // Horizontal culling 
+        Horizon horizon;
+        horizon.fill(-PI * 0.5f);
+        
+        for (const HorizonSample& sample: samples){
+            const float previousHorizon = horizon[sample.bin];
+
+            // Is this terrain sample potentially visible?
+            if (sample.elevation >= previousHorizon - HORIZON_MARGIN){
+                candidates[sample.candidateIndex].visible = true;
+            }
+            
+            // Update the skyline if this sample extends it.
+            if (sample.elevation > previousHorizon){
+                horizon[sample.bin] = sample.elevation;
+            }
+        }
+    }
+
+
+    // 6. Draw all uploaded chunk
     // Shader is already Activate()'d by the caller
     {
-        Frustum frustum = camera.GetFrustum(); // build once per frame, outside the loop
-                                                    
         std::lock_guard lock(chunksMutex_);
         drawnChunks_ = 0;
-        for (auto& [coord, chunk] : chunks_){
-            if (!frustum.IsVisible(chunk->GetBoundingBox()) && IS_FRUSTUM_CULLING) // skip glDraw call if chunk not within view frustum 
+        for (RenderCandidate candidate: candidates){
+            if (!candidate.visible) // skip render if not visible
                 continue;
 
-            chunk->Render(shader, camera);
+            candidate.chunk->Render(shader, camera);
             ++drawnChunks_;
         }
         totalChunks_ = static_cast<int>(chunks_.size());
-        // LOG_DEBUG("Total Chunk Drawn: " + std::to_string(drawnChunks_));
+        if (prevChunkCount_ != drawnChunks_){
+            LOG_DEBUG("Total Chunk Drawn: " + std::to_string(drawnChunks_) + " \nTotal Chunk: " + std::to_string(totalChunks_));
+            prevChunkCount_ = drawnChunks_;
+        }
     }
 }
