@@ -35,7 +35,7 @@ public:
     static std::string Concat(Args&&... args) {
         std::ostringstream oss;
         oss << std::boolalpha; // true/false instead of 1/0
-        (oss << ... << std::forward<Args>(args));
+        (oss << ... << std::forward<Args>(args)); // Concat("x=", 5, " z=", 3.5) becomes: (((oss << "x=") << 5) << " z=") << 3.5; // a loop that runs at compile time, so you don’t need recursion
         return oss.str();
     }
 
@@ -44,20 +44,19 @@ private:
     static std::mutex mutex;
 };
 
+// The macros capture source_location at the call site, which is why they
+// (not a variadic Log function) do the forwarding.
+#define LOG_IMPL(level, ...) \
+    do { Logger::Log(level, Logger::Concat(__VA_ARGS__), std::source_location::current()); } while(false)
+
 // Debug logging is removed in Release builds.
 #ifdef DEBUG_MODE
-    #define LOG_DEBUG(...) \
-        do { Logger::Log(LogLevel::Debug, __VA_ARGS__); } while (false)
+    #define LOG_DEBUG(...) LOG_IMPL(LogLevel::Debug, __VA_ARGS__)
 #else
     #define LOG_DEBUG(...) do { } while (false)
 #endif
 
 // These remain available in Release builds.
-#define LOG_INFO(...) \
-    do { Logger::Log(LogLevel::Info, __VA_ARGS__); } while (false)
-
-#define LOG_WARNING(...) \
-    do { Logger::Log(LogLevel::Warning, __VA_ARGS__); } while (false)
-
-#define LOG_ERROR(...) \
-    do { Logger::Log(LogLevel::Error, __VA_ARGS__); } while (false)
+#define LOG_INFO(...) LOG_IMPL(LogLevel::Info, __VA_ARGS__)
+#define LOG_WARNING(...) LOG_IMPL(LogLevel::Warning, __VA_ARGS__)
+#define LOG_ERROR(...) LOG_IMPL(LogLevel::Error, __VA_ARGS__)
