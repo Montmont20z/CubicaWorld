@@ -40,7 +40,7 @@ namespace {
         std::size_t candidateIndex;
     };
 
-    int GetHorizonBin(float dx, float dz){
+    int GetAzimuthBin(float dx, float dz){
         const float angle = std::atan2(dz, dx);
         
         const float normalize = (angle + PI) / TWO_PI;

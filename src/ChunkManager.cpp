@@ -266,7 +266,7 @@ void ChunkManager::UpdateSingleThreaded(const glm::vec3& cameraPos,const Shader&
                     // Elevation relative to the camera's horizontal plane.
                     const float elevation = std::atan2(worldY - cameraPos.y, distance);
 
-                    const int bin = GetHorizonBin(dx, dz);
+                    const int bin = GetAzimuthBin(dx, dz);
 
                     samples.push_back({
                         distanceSq,
@@ -521,7 +521,7 @@ void ChunkManager::UpdateMultiThreaded(const glm::vec3& cameraPos,const Shader& 
                     // Elevation relative to the camera's horizontal plane.
                     const float elevation = std::atan2(worldY - cameraPos.y, distance);
 
-                    const int bin = GetHorizonBin(dx, dz);
+                    const int bin = GetAzimuthBin(dx, dz);
 
                     samples.push_back({
                         distanceSq,
