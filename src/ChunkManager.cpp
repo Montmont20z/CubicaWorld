@@ -19,8 +19,9 @@ ChunkManager::ChunkManager(int viewDistance, bool isSingleThreaded)
     // Spawn threads on initialize
     // Spawn N-1 worker threads (leave one core for main thread)
     if (!isSingleThreaded_){ // skip thread initialize if single thread
-        const int numWorkers = std::max(1u, std::thread::hardware_concurrency() - 1); 
-        for (int i = 0; i < numWorkers; ++i){
+        const unsigned int hc = std::thread::hardware_concurrency();
+        const unsigned int numWorkers = hc > 2 ? hc - 2 : 1;
+        for (unsigned int i = 0; i < numWorkers; ++i){
            workers_.emplace_back(&ChunkManager::WorkerLoop, this);
         }
     }
