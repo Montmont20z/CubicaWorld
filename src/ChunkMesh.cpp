@@ -50,6 +50,7 @@ void ChunkMesh::Upload(MeshData&& data) {
         ebo_ = std::make_unique<EBO>(data.indices, GL_DYNAMIC_DRAW);
 
         vao_.Bind();
+        ebo_->Bind();
         vao_.LinkAttrib(vbo_->ID, 0, 3, GL_FLOAT, sizeof(ChunkVertex), (void*)offsetof(ChunkVertex, position));
         vao_.LinkAttrib(vbo_->ID, 1, 3, GL_FLOAT, sizeof(ChunkVertex), (void*)offsetof(ChunkVertex, normal));
         vao_.LinkAttrib(vbo_->ID, 2, 2, GL_FLOAT, sizeof(ChunkVertex), (void*)offsetof(ChunkVertex, texCoords));
