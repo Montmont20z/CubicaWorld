@@ -108,6 +108,7 @@ int main() {
     glfwSetFramebufferSizeCallback(window, frameBufferCallback);
 
     glEnable(GL_DEPTH_TEST);
+    glEnable(GL_CULL_FACE);
     glDepthFunc(GL_LESS);
 
 #ifdef DEBUG_MODE
@@ -156,7 +157,7 @@ int main() {
         }
         f3WasDown = f3Down;
 
-        if (!showDebugOverlay) camera.ProcessInput(window);
+        camera.ProcessInput(window);
 
         // Resolve completed queries without stalling the CPU.
         for (std::size_t i = 0; i < GPU_QUERY_COUNT; ++i) {
