@@ -1,9 +1,13 @@
 #include "ChunkManager.hpp"
 #include "Chunk.hpp"
 #include "Constants.hpp"
-#include "RenderSettings.hpp"
 #include "Logger.hpp"
 #include "OcclusionCuller.hpp"
+#include "PerformanceMetrics.hpp"
+
+#include <glad/glad.h>
+#include <chrono>
+#include <exception>
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
@@ -27,6 +31,27 @@ ChunkManager::ChunkManager(int viewDistance, bool isSingleThreaded)
     }
 }
 
+namespace {
+using Clock = std::chrono::steady_clock;
+inline double ElapsedMs(Clock::time_point start) {
+    return std::chrono::duration<double, std::milli>(Clock::now() - start).count();
+}
+}
+
+void ChunkManager::SetViewDistance(int distance) noexcept {
+    viewDistance_ = std::clamp(distance, 2, 64);
+}
+
+std::size_t ChunkManager::PendingWorkCount() {
+    std::lock_guard<std::mutex> lock(workMutex_);
+    return workQueue_.size();
+}
+
+std::size_t ChunkManager::PendingUploadCount() {
+    std::lock_guard<std::mutex> lock(uploadMutex_);
+    return uploadQueue_.size();
+}
+
 ChunkManager::~ChunkManager()
 {
     // Signal worker thread to stop, then join
@@ -45,32 +70,56 @@ ChunkManager::~ChunkManager()
 
 void ChunkManager::Update(const glm::vec3 &cameraPos, const Shader &shader, const Camera &camera)
 {
+    auto& metrics = PerformanceMetrics::Instance();
+    metrics.BeginFrame();
+    metrics.SetWorldAndSettings(
+        viewDistance_, isSingleThreaded_, static_cast<std::uint32_t>(workers_.size()),
+        frustumCullingEnabled_, horizonCullingEnabled_,
+        glIsEnabled(GL_CULL_FACE) == GL_TRUE);
+
+    const auto updateStart = Clock::now();
     if (isSingleThreaded_) UpdateSingleThreaded(cameraPos, shader, camera);
     else                 UpdateMultiThreaded(cameraPos, shader, camera);
+    metrics.SetChunkUpdateTime(ElapsedMs(updateStart));
+    metrics.SetQueueDepths(PendingWorkCount(), PendingUploadCount());
+    metrics.SetWorldAndSettings(
+        viewDistance_, isSingleThreaded_, static_cast<std::uint32_t>(workers_.size()),
+        frustumCullingEnabled_, horizonCullingEnabled_,
+        glIsEnabled(GL_CULL_FACE) == GL_TRUE);
 }
 
 void ChunkManager::WorkerLoop()
 {
     while (true){
-        std::function<void()> fn;
+        WorkItem item;
         {
             std::unique_lock lock(workMutex_);
-            workCV_.wait(lock, [&]{ return stopping_ || !workQueue_.empty(); }); // only wakes if stopping or something in workQueue
+            workCV_.wait(lock, [&]{ return stopping_ || !workQueue_.empty(); });
             if (stopping_ && workQueue_.empty()) return;
-            // steal the work from queue
-            fn = std::move(workQueue_.front()); 
-            workQueue_.pop(); // remove the work from queue
+            item = std::move(workQueue_.front());
+            workQueue_.pop();
         }
-        fn(); // execute the work
+
+        auto& metrics = PerformanceMetrics::Instance();
+        metrics.RecordWorkerStarted(ElapsedMs(item.enqueuedAt));
+        try {
+            item.fn(); // execute the work
+        } catch (const std::exception& e) {
+            LOG_ERROR(std::string("Chunk worker exception: ") + e.what());
+        } catch (...) {
+            LOG_ERROR("Unknown exception in chunk worker");
+        }
+        metrics.RecordWorkerFinished();
     }
 }
 
 void ChunkManager::EnqueueWork(std::function<void()> fn){
     {
         std::lock_guard lock(workMutex_);
-        workQueue_.push(std::move(fn)); // push into worker queue
+        workQueue_.push(WorkItem{std::move(fn), Clock::now()});
     }
-    workCV_.notify_one(); // and notify thread to begin work
+    PerformanceMetrics::Instance().RecordJobQueued();
+    workCV_.notify_one();
 }
 
 std::shared_ptr<const Chunk> ChunkManager::GetChunk(ChunkCoord coord) const {
@@ -153,10 +202,19 @@ void ChunkManager::UpdateSingleThreaded(const glm::vec3& cameraPos,const Shader&
                 chunks_[coord] = rawChunk;
             }
 
-            // single thread draw chunk
+            // Single-threaded terrain generation, meshing and main-thread upload.
+            auto stageStart = Clock::now();
             rawChunk->Generate(terrainGenerator_);
+            PerformanceMetrics::Instance().RecordTerrainGeneration(ElapsedMs(stageStart));
+
+            stageStart = Clock::now();
             rawChunk->BuildMesh(GatherNeighbors(coord));
-            rawChunk->UploadIfReady(); // upload Mesh to GPU
+            PerformanceMetrics::Instance().RecordMeshBuild(ElapsedMs(stageStart));
+
+            stageStart = Clock::now();
+            rawChunk->UploadIfReady();
+            PerformanceMetrics::Instance().AddUpload(ElapsedMs(stageStart));
+            PerformanceMetrics::Instance().RecordSynchronousJobCompleted();
        }
     }
 
@@ -179,8 +237,14 @@ void ChunkManager::UpdateSingleThreaded(const glm::vec3& cameraPos,const Shader&
     // 3. Remesh Dirty chunks
     for (auto& [coord, chunk ]: chunks_){
        if (chunk->GetChunkState() == ChunkState::Dirty){
+           auto stageStart = Clock::now();
            chunk->BuildMesh(GatherNeighbors(coord));
-           chunk->UploadIfReady(); // push dirty mesh to GPU
+           PerformanceMetrics::Instance().RecordMeshBuild(ElapsedMs(stageStart));
+
+           stageStart = Clock::now();
+           chunk->UploadIfReady();
+           PerformanceMetrics::Instance().AddUpload(ElapsedMs(stageStart));
+           PerformanceMetrics::Instance().RecordSynchronousJobCompleted();
        } 
     }
     
@@ -190,13 +254,24 @@ void ChunkManager::UpdateSingleThreaded(const glm::vec3& cameraPos,const Shader&
     std::vector<RenderCandidate> candidates;
     candidates.reserve(chunks_.size());
 
-    // push back chunk into candidates if it pass all optimization filter
+    std::uint64_t uploadedChunksForCull = 0;
+    std::uint64_t frustumTested = 0;
+    std::uint64_t frustumRejected = 0;
+    const auto frustumStageStart = Clock::now();
+
+    // Push uploaded chunks through the runtime-selectable frustum filter.
     for (auto& [coord, chunk]: chunks_){
         if (chunk->GetChunkState() != ChunkState::Uploaded)
             continue;
+        ++uploadedChunksForCull;
 
-        if (IS_FRUSTUM_CULLING && !frustum.IsVisible(chunk->GetBoundingBox()) ) // skip glDraw call if chunk not within view frustum 
-            continue;
+        if (frustumCullingEnabled_) {
+            ++frustumTested;
+            if (!frustum.IsVisible(chunk->GetBoundingBox())) {
+                ++frustumRejected;
+                continue;
+            }
+        }
        
         const AABB bounds = chunk->GetBoundingBox(); 
 
@@ -220,11 +295,20 @@ void ChunkManager::UpdateSingleThreaded(const glm::vec3& cameraPos,const Shader&
             coord,
             chunk,
             nearestDistanceSq,
-            !IS_HORIZON_CULLING 
+            !horizonCullingEnabled_ 
         }); 
     }
+    const double frustumStageMs = ElapsedMs(frustumStageStart);
+    PerformanceMetrics::Instance().SetFrustumStageTime(frustumStageMs);
+    PerformanceMetrics::Instance().SetVisibilityCounts(
+        chunks_.size(), uploadedChunksForCull, frustumTested, frustumRejected,
+        0, 0, 0, 0, 0);
+
+    const auto horizonStageStart = Clock::now();
+    std::uint64_t horizonSamplesGenerated = 0;
+    std::uint64_t horizonSamplesEvaluated = 0;
     
-    if (IS_HORIZON_CULLING){
+    if (horizonCullingEnabled_){
         // Sort chunks from nearest to farthest.
         std::sort(
             candidates.begin(),
@@ -241,6 +325,7 @@ void ChunkManager::UpdateSingleThreaded(const glm::vec3& cameraPos,const Shader&
             const RenderCandidate& candidate = candidates[i];
             for (int x = 0; x < CHUNK_SIZE; ++x){
                 for (int z = 0; z < CHUNK_SIZE; ++z){
+                    ++horizonSamplesGenerated;
                     
                     const float sampleWorldX = candidate.coord.x * CHUNK_SIZE + x ;
                     const float sampleWorldZ = candidate.coord.z * CHUNK_SIZE + z ;
@@ -296,6 +381,7 @@ void ChunkManager::UpdateSingleThreaded(const glm::vec3& cameraPos,const Shader&
         horizon.fill(-PI * 0.5f);
         
         for (const HorizonSample& sample: samples){
+            ++horizonSamplesEvaluated;
             const float previousHorizon = horizon[sample.bin];
 
             // Is this terrain sample potentially visible?
@@ -309,8 +395,18 @@ void ChunkManager::UpdateSingleThreaded(const glm::vec3& cameraPos,const Shader&
             }
         }
     }
+
+    std::uint64_t horizonRejectedChunks = 0;
+    if (horizonCullingEnabled_) {
+        for (const RenderCandidate& candidate : candidates) {
+            if (!candidate.visible) ++horizonRejectedChunks;
+        }
+    }
+    const double horizonStageMs = ElapsedMs(horizonStageStart);
+    PerformanceMetrics::Instance().SetHorizonStageTime(horizonStageMs);
     
     // 5. Draw all chunk
+    const auto renderStart = Clock::now();
     drawnChunks_ = 0;
     for (RenderCandidate candidate: candidates){
         if (!candidate.visible) // skip render if not visible
@@ -319,6 +415,12 @@ void ChunkManager::UpdateSingleThreaded(const glm::vec3& cameraPos,const Shader&
         candidate.chunk->Render(shader, camera);
         ++drawnChunks_;
     }
+    const double renderCpuMs = ElapsedMs(renderStart);
+    PerformanceMetrics::Instance().SetRenderCpuTime(renderCpuMs);
+    PerformanceMetrics::Instance().SetVisibilityCounts(
+        chunks_.size(), uploadedChunksForCull, frustumTested, frustumRejected,
+        horizonCullingEnabled_ ? candidates.size() : 0, horizonRejectedChunks,
+        horizonSamplesGenerated, horizonSamplesEvaluated, drawnChunks_);
     totalChunks_ = static_cast<int>(chunks_.size());
     if (prevChunkCount_ != drawnChunks_){
         LOG_DEBUG("Total Chunk Drawn: " + std::to_string(drawnChunks_) + " \nTotal Chunk: " + std::to_string(totalChunks_));
@@ -377,8 +479,13 @@ void ChunkManager::UpdateMultiThreaded(const glm::vec3& cameraPos,const Shader& 
 
             // Push work onto thread pool
             EnqueueWork([this, rawChunk, coord](){
+                    auto stageStart = Clock::now();
                     rawChunk->Generate(terrainGenerator_);
+                    PerformanceMetrics::Instance().RecordTerrainGeneration(ElapsedMs(stageStart));
+
+                    stageStart = Clock::now();
                     rawChunk->BuildMesh(GatherNeighbors(coord));
+                    PerformanceMetrics::Instance().RecordMeshBuild(ElapsedMs(stageStart));
                     {
                         std::lock_guard lock(uploadMutex_);
                         uploadQueue_.push(coord);
@@ -411,7 +518,9 @@ void ChunkManager::UpdateMultiThreaded(const glm::vec3& cameraPos,const Shader& 
             if (chunk->GetChunkState() == ChunkState::Dirty) {
                 std::shared_ptr<Chunk> sharedChunk = chunk;
                 EnqueueWork([this, sharedChunk, coord]() {
+                    const auto stageStart = Clock::now();
                     sharedChunk->BuildMesh(GatherNeighbors(coord));
+                    PerformanceMetrics::Instance().RecordMeshBuild(ElapsedMs(stageStart));
                     {
                         std::lock_guard ul(uploadMutex_);
                         uploadQueue_.push(coord);
@@ -433,8 +542,11 @@ void ChunkManager::UpdateMultiThreaded(const glm::vec3& cameraPos,const Shader& 
         {
             std::lock_guard lock(chunksMutex_);
             auto it = chunks_.find(coord);
-            if (it != chunks_.end())
+            if (it != chunks_.end()) {
+                const auto uploadStart = Clock::now();
                 it->second->UploadIfReady();
+                PerformanceMetrics::Instance().AddUpload(ElapsedMs(uploadStart));
+            }
         }
         ++uploads; 
     }
@@ -445,13 +557,24 @@ void ChunkManager::UpdateMultiThreaded(const glm::vec3& cameraPos,const Shader& 
     std::vector<RenderCandidate> candidates;
     candidates.reserve(chunks_.size());
 
-    // push back chunk into candidates if it pass all optimization filter
+    std::uint64_t uploadedChunksForCull = 0;
+    std::uint64_t frustumTested = 0;
+    std::uint64_t frustumRejected = 0;
+    const auto frustumStageStart = Clock::now();
+
+    // Push uploaded chunks through the runtime-selectable frustum filter.
     for (auto& [coord, chunk]: chunks_){
         if (chunk->GetChunkState() != ChunkState::Uploaded)
             continue;
+        ++uploadedChunksForCull;
 
-        if (IS_FRUSTUM_CULLING && !frustum.IsVisible(chunk->GetBoundingBox()) ) // skip glDraw call if chunk not within view frustum 
-            continue;
+        if (frustumCullingEnabled_) {
+            ++frustumTested;
+            if (!frustum.IsVisible(chunk->GetBoundingBox())) {
+                ++frustumRejected;
+                continue;
+            }
+        }
        
         const AABB bounds = chunk->GetBoundingBox(); 
 
@@ -475,11 +598,20 @@ void ChunkManager::UpdateMultiThreaded(const glm::vec3& cameraPos,const Shader& 
             coord,
             chunk,
             nearestDistanceSq,
-            !IS_HORIZON_CULLING 
+            !horizonCullingEnabled_ 
         }); 
     }
+    const double frustumStageMs = ElapsedMs(frustumStageStart);
+    PerformanceMetrics::Instance().SetFrustumStageTime(frustumStageMs);
+    PerformanceMetrics::Instance().SetVisibilityCounts(
+        chunks_.size(), uploadedChunksForCull, frustumTested, frustumRejected,
+        0, 0, 0, 0, 0);
+
+    const auto horizonStageStart = Clock::now();
+    std::uint64_t horizonSamplesGenerated = 0;
+    std::uint64_t horizonSamplesEvaluated = 0;
     
-    if (IS_HORIZON_CULLING){
+    if (horizonCullingEnabled_){
         // Sort chunks from nearest to farthest.
         std::sort(
             candidates.begin(),
@@ -496,6 +628,7 @@ void ChunkManager::UpdateMultiThreaded(const glm::vec3& cameraPos,const Shader& 
             const RenderCandidate& candidate = candidates[i];
             for (int x = 0; x < CHUNK_SIZE; ++x){
                 for (int z = 0; z < CHUNK_SIZE; ++z){
+                    ++horizonSamplesGenerated;
                     
                     const float sampleWorldX = candidate.coord.x * CHUNK_SIZE + x ;
                     const float sampleWorldZ = candidate.coord.z * CHUNK_SIZE + z ;
@@ -551,6 +684,7 @@ void ChunkManager::UpdateMultiThreaded(const glm::vec3& cameraPos,const Shader& 
         horizon.fill(-PI * 0.5f);
         
         for (const HorizonSample& sample: samples){
+            ++horizonSamplesEvaluated;
             const float previousHorizon = horizon[sample.bin];
 
             // Is this terrain sample potentially visible?
@@ -565,11 +699,20 @@ void ChunkManager::UpdateMultiThreaded(const glm::vec3& cameraPos,const Shader& 
         }
     }
 
+    std::uint64_t horizonRejectedChunks = 0;
+    if (horizonCullingEnabled_) {
+        for (const RenderCandidate& candidate : candidates) {
+            if (!candidate.visible) ++horizonRejectedChunks;
+        }
+    }
+    const double horizonStageMs = ElapsedMs(horizonStageStart);
+    PerformanceMetrics::Instance().SetHorizonStageTime(horizonStageMs);
 
     // 6. Draw all uploaded chunk
     // Shader is already Activate()'d by the caller
     {
         std::lock_guard lock(chunksMutex_);
+        const auto renderStart = Clock::now();
         drawnChunks_ = 0;
         for (RenderCandidate candidate: candidates){
             if (!candidate.visible) // skip render if not visible
@@ -578,6 +721,12 @@ void ChunkManager::UpdateMultiThreaded(const glm::vec3& cameraPos,const Shader& 
             candidate.chunk->Render(shader, camera);
             ++drawnChunks_;
         }
+        const double renderCpuMs = ElapsedMs(renderStart);
+        PerformanceMetrics::Instance().SetRenderCpuTime(renderCpuMs);
+        PerformanceMetrics::Instance().SetVisibilityCounts(
+            chunks_.size(), uploadedChunksForCull, frustumTested, frustumRejected,
+            horizonCullingEnabled_ ? candidates.size() : 0, horizonRejectedChunks,
+            horizonSamplesGenerated, horizonSamplesEvaluated, drawnChunks_);
         totalChunks_ = static_cast<int>(chunks_.size());
         if (prevChunkCount_ != drawnChunks_){
             LOG_DEBUG("Total Chunk Drawn: " + std::to_string(drawnChunks_) + " \nTotal Chunk: " + std::to_string(totalChunks_));

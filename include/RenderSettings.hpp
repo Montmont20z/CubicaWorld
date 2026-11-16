@@ -1,3 +1,4 @@
+#pragma once
 constexpr bool IS_SINGLE_THREADED = false;
 constexpr bool IS_FRUSTUM_CULLING = true;
 constexpr bool IS_HORIZON_CULLING = true;

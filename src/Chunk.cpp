@@ -1,7 +1,6 @@
 #include "Chunk.hpp"
 #include "BlockType.hpp"
 #include "Constants.hpp"
-#include "Logger.hpp"
 #include "MeshData.hpp"
 #include "ChunkMesh.hpp"
 #include "RenderSettings.hpp"
@@ -9,7 +8,10 @@
 #include "Meshing/BlockSampler.hpp"
 #include "Meshing/NaiveMesher.hpp"
 #include "Meshing/GreedyMesher.hpp"
+#include "PerformanceMetrics.hpp"
 
+#include <chrono>
+#include <cstdint>
 #include <atomic>
 #include <cassert>
 #include <cmath>
@@ -106,8 +108,7 @@ void Chunk::Generate(const TerrainGenerator& generator){
 }
 
 
-void Chunk::BuildMesh(const ChunkNeighbors& neighbors){
-    
+void Chunk::BuildMesh(const ChunkNeighbors& neighbors) {
     assert(GetChunkState() == ChunkState::Generated || GetChunkState() == ChunkState::Dirty);
 
     const meshing::BlockSampler sampler(*this, neighbors);
@@ -115,12 +116,43 @@ void Chunk::BuildMesh(const ChunkNeighbors& neighbors){
     data.vertices.reserve(4096);
     data.indices.reserve(6144);
 
+    const auto mesherStart = std::chrono::steady_clock::now();
+
     switch (MESHING_MODE) {
         case MeshingMode::Naive:       meshing::MeshNaive(sampler, false, data); break;
         case MeshingMode::NaiveCulled: meshing::MeshNaive(sampler, true,  data); break;
         case MeshingMode::Greedy:      meshing::GreedyMesher(sampler).Build(data); break;
     }
-    
+
+    const double mesherMs = std::chrono::duration<double, std::milli>(
+        std::chrono::steady_clock::now() - mesherStart).count();
+
+    // MeshData is an indexed triangle list. Each emitted quad is represented
+    // by two triangles (six indices).
+    using IndexType = decltype(data.indices)::value_type;
+
+    MeshGeometryMetrics geometry;
+    geometry.quads = static_cast<std::uint64_t>(data.indices.size() / 6);
+    geometry.vertices = static_cast<std::uint64_t>(data.vertices.size());
+    geometry.indices = static_cast<std::uint64_t>(data.indices.size());
+    geometry.gpuBytes =
+        static_cast<std::uint64_t>(data.vertices.size() * sizeof(ChunkVertex)) +
+        static_cast<std::uint64_t>(data.indices.size() * sizeof(IndexType));
+    geometry.mesherTotalMs = mesherMs;
+
+    // RenderSettings.hpp currently selects MESHING_MODE at build time.
+    // faceCullingEnabled refers specifically to MeshNaive(sampler, true, data).
+    // GreedyMesher has its own face visibility/merge logic and is identified
+    // separately rather than assuming it uses the NaiveMesher boolean flag.
+    geometry.mesherConfigValid = true;
+    geometry.greedyMeshingEnabled = (MESHING_MODE == MeshingMode::Greedy);
+    geometry.faceCullingEnabled = (MESHING_MODE == MeshingMode::NaiveCulled);
+
+    // Deliberately leave faceCountsValid and faceStageTimingsValid false.
+    // Exact pre/post-face-culling counts and isolated face/greedy stage times
+    // require counters/timers inside NaiveMesher.cpp / GreedyMesher.cpp.
+    PerformanceMetrics::Instance().RecordMeshGeometry(geometry);
+
     pendingMesh_ = std::move(data);
     auto expected = ChunkState::Generated;
     state_.compare_exchange_strong(expected, ChunkState::MeshReady, std::memory_order_acq_rel); // If it fails, someone set Dirty mid-build. Leave it alone; next frame remeshes.

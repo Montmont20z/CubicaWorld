@@ -20,7 +20,10 @@ add_library(stb INTERFACE)
 target_include_directories(stb INTERFACE ${CMAKE_SOURCE_DIR}/include)
 
 add_library(glm INTERFACE)
-target_include_directories(glm INTERFACE ${CMAKE_SOURCE_DIR}/include) 
+target_include_directories(glm INTERFACE ${CMAKE_SOURCE_DIR}/include)
+
+# Dear ImGui must be present at external/imgui.
+set(IMGUI_DIR "${CMAKE_SOURCE_DIR}/external/imgui")
 
 add_executable(cubica
     src/third_party/stb.cpp
@@ -39,6 +42,24 @@ add_executable(cubica
     src/Meshing/BlockSampler.cpp
     src/Meshing/GreedyMesher.cpp
     src/Meshing/NaiveMesher.cpp
+
+    # Performance overlay
+    src/PerformanceMetrics.cpp
+    src/DebugOverlay.cpp
+
+    # Dear ImGui core + GLFW/OpenGL3 backends
+    ${IMGUI_DIR}/imgui.cpp
+    ${IMGUI_DIR}/imgui_draw.cpp
+    ${IMGUI_DIR}/imgui_tables.cpp
+    ${IMGUI_DIR}/imgui_widgets.cpp
+    ${IMGUI_DIR}/backends/imgui_impl_glfw.cpp
+    ${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp
+)
+
+target_include_directories(cubica PRIVATE
+    ${IMGUI_DIR}
+    ${IMGUI_DIR}/backends
+    ${CMAKE_SOURCE_DIR}/src
 )
 
 target_link_libraries(cubica
@@ -55,7 +76,7 @@ target_compile_definitions(cubica PRIVATE
     $<$<CONFIG:Debug>:DEBUG_MODE>
 )
 
-# ---------- Copy shaders & assets directory to the runtime (binary) folder ----------
+# Copy shaders & assets directory to the runtime (binary) folder
 add_custom_command(TARGET cubica POST_BUILD
   COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_FILE_DIR:cubica>/shaders
   COMMAND ${CMAKE_COMMAND} -E copy_directory
@@ -66,17 +87,14 @@ add_custom_command(TARGET cubica POST_BUILD
           ${CMAKE_SOURCE_DIR}/assets
           $<TARGET_FILE_DIR:cubica>/assets
 )
-# --------------------------------------------------------------------------
+
 # AddressSanitizer for Debug builds (GCC / Clang)
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
-
     target_compile_options(cubica PRIVATE
         $<$<CONFIG:Debug>:-fsanitize=address>
         $<$<CONFIG:Debug>:-fno-omit-frame-pointer>
     )
-
     target_link_options(cubica PRIVATE
         $<$<CONFIG:Debug>:-fsanitize=address>
     )
-
 endif()

@@ -10,7 +10,7 @@ Showcase performance optimization method in a voxel game engine
 
 
 ## Tech Stack
-C++17
+C++20
 OpenGL 4.3 (core profile)
 GLFW — window/input
 GLAD — OpenGL function loading
@@ -84,11 +84,11 @@ Block placement/removal via ray casting
 | Mesh class, texture loading, lighting/fog shaders | ✅ Completed | 18–21 Jan 2026 |
 | BlockType enum, Chunk class, face-culled meshing | ✅ Completed | 22–26 Jan 2026 |
 | README/UML regenerated | ✅ Completed | 5–8 Jun 2026 |
-| Greedy meshing | ⏳ Planned | 22 Jun – 12 Jul 2026 |
-| Frustum culling | ⏳ Planned | 13–26 Jul 2026 |
-| Occlusion culling | ⏳ Planned | 27 Jul – 16 Aug 2026 |
-| Procedural terrain (Perlin noise) | ⏳ Planned | 17 Aug – 6 Sep 2026 |
-| Player physics & interaction | ⏳ Planned | 7–27 Sep 2026 |
+| Greedy meshing |  ✅ Completed| 22 Jun – 12 Jul 2026 |
+| Frustum culling |   ✅ Completed| 13–26 Jul 2026 |
+| Occlusion culling |  ✅ Completed| 27 Jul – 16 Aug 2026 |
+| Procedural terrain (Perlin noise) |  ✅ Completed| 17 Aug – 6 Sep 2026 |
+| Player physics & interaction & GUI metric counting | ⏳ Planned | 7–27 Sep 2026 |
 | Benchmarking & report | ⏳ Planned | 28 Sep – 18 Oct 2026 |
  
  
