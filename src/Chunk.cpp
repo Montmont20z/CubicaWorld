@@ -109,6 +109,7 @@ void Chunk::Generate(const TerrainGenerator& generator){
 
 
 void Chunk::BuildMesh(const ChunkNeighbors& neighbors) {
+    const ChunkState buildState = GetChunkState();
     assert(GetChunkState() == ChunkState::Generated || GetChunkState() == ChunkState::Dirty);
 
     const meshing::BlockSampler sampler(*this, neighbors);
@@ -154,7 +155,7 @@ void Chunk::BuildMesh(const ChunkNeighbors& neighbors) {
     PerformanceMetrics::Instance().RecordMeshGeometry(geometry);
 
     pendingMesh_ = std::move(data);
-    auto expected = ChunkState::Generated;
+    auto expected = buildState;
     state_.compare_exchange_strong(expected, ChunkState::MeshReady, std::memory_order_acq_rel); // If it fails, someone set Dirty mid-build. Leave it alone; next frame remeshes.
 }
 

@@ -14,7 +14,7 @@ If a distant chunk is entirely below that skyline, it cannot be seen, so skip re
 #include <cstddef>
 #include <memory>
 namespace {
-    constexpr int HORIZONTAL_BIN_COUNT = 4096;
+    constexpr int HORIZONTAL_BIN_COUNT = 4096; // 0.08 degree per bin
     constexpr float PI = 3.14159265358979323846f;
     constexpr float TWO_PI = 2.0f * PI;
     
