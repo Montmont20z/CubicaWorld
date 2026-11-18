@@ -31,8 +31,9 @@ struct ChunkCoordHash{
 enum class ChunkState : uint8_t {
     Empty,     // allocated blocks not genereted
     Generated, // blocks_ filled, mesh not built
-    MeshReady, // MeshData built on worker threadm waiting for GL upload
-    Uploaded,  // GPU mesh is current, safe to render
+    Meshing,   //
+    MeshReady, // MeshData built on worker thread waiting for GL upload
+    Uploaded,  // mesh is uploaded to GPU, safe to call glDrawElement()
     Dirty,     // block changed - needs remesh (reruns BuildMesh -> MeshReady)
 };
 
@@ -77,7 +78,7 @@ public:
     void MarkDirty(){ state_.store(ChunkState::Dirty, std::memory_order_release); };
     AABB GetBoundingBox() const;
     int GetSurfaceHeight(int worldX, int worldZ) const;
-
+    bool TryBeginMesh();
 
 private:
     ChunkCoord chunkCoord_;

@@ -62,6 +62,7 @@ private:
     void UpdateMultiThreaded(const glm::vec3& cameraPos, const Shader& shader, const Camera& camera);
     std::size_t PendingWorkCount();
     std::size_t PendingUploadCount();
+    bool CanMesh(ChunkCoord c) const;
 
     std::vector<Chunk*> pendingDeletes_;
     std::mutex deleteMutex_;
