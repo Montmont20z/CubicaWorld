@@ -273,6 +273,7 @@ void ChunkManager::UpdateSingleThreaded(const glm::vec3& cameraPos,const Shader&
     candidates.reserve(chunks_.size());
 
     std::uint64_t uploadedChunksForCull = 0;
+    std::uint64_t uploadedChunksInView = 0;
     std::uint64_t frustumTested = 0;
     std::uint64_t frustumRejected = 0;
     const auto frustumStageStart = Clock::now();
@@ -282,6 +283,12 @@ void ChunkManager::UpdateSingleThreaded(const glm::vec3& cameraPos,const Shader&
         if (chunk->GetChunkState() != ChunkState::Uploaded)
             continue;
         ++uploadedChunksForCull;
+        
+        // Count only chunks inside the actual view distance.
+        if (std::abs(coord.x - camChunkX) <= viewDistance_ &&
+            std::abs(coord.z - camChunkZ) <= viewDistance_) {
+            ++uploadedChunksInView;
+        }
 
         if (frustumCullingEnabled_) {
             ++frustumTested;
@@ -316,6 +323,9 @@ void ChunkManager::UpdateSingleThreaded(const glm::vec3& cameraPos,const Shader&
             !horizonCullingEnabled_ 
         }); 
     }
+    PerformanceMetrics::Instance().SetViewUploadedChunks(
+        uploadedChunksInView
+    );
     const double frustumStageMs = ElapsedMs(frustumStageStart);
     PerformanceMetrics::Instance().SetFrustumStageTime(frustumStageMs);
     PerformanceMetrics::Instance().SetVisibilityCounts(
@@ -439,11 +449,6 @@ void ChunkManager::UpdateSingleThreaded(const glm::vec3& cameraPos,const Shader&
         chunks_.size(), uploadedChunksForCull, frustumTested, frustumRejected,
         horizonCullingEnabled_ ? candidates.size() : 0, horizonRejectedChunks,
         horizonSamplesGenerated, horizonSamplesEvaluated, drawnChunks_);
-    totalChunks_ = static_cast<int>(chunks_.size());
-    if (prevChunkCount_ != drawnChunks_){
-        LOG_DEBUG("Total Chunk Drawn: " + std::to_string(drawnChunks_) + " \nTotal Chunk: " + std::to_string(totalChunks_));
-        prevChunkCount_ = drawnChunks_;
-    }
 }
 
 void ChunkManager::UpdateMultiThreaded(const glm::vec3& cameraPos,const Shader& shader, const Camera& camera){
@@ -536,6 +541,7 @@ void ChunkManager::UpdateMultiThreaded(const glm::vec3& cameraPos,const Shader& 
     candidates.reserve(chunks_.size());
 
     std::uint64_t uploadedChunksForCull = 0;
+    std::uint64_t uploadedChunksInView = 0;
     std::uint64_t frustumTested = 0;
     std::uint64_t frustumRejected = 0;
     const auto frustumStageStart = Clock::now();
@@ -545,6 +551,11 @@ void ChunkManager::UpdateMultiThreaded(const glm::vec3& cameraPos,const Shader& 
         if (chunk->GetChunkState() != ChunkState::Uploaded)
             continue;
         ++uploadedChunksForCull;
+        // Count only chunks inside the actual view distance.
+        if (std::abs(coord.x - camChunkX) <= viewDistance_ &&
+            std::abs(coord.z - camChunkZ) <= viewDistance_) {
+            ++uploadedChunksInView;
+        }
 
         if (frustumCullingEnabled_) {
             ++frustumTested;
@@ -579,6 +590,9 @@ void ChunkManager::UpdateMultiThreaded(const glm::vec3& cameraPos,const Shader& 
             !horizonCullingEnabled_ 
         }); 
     }
+    PerformanceMetrics::Instance().SetViewUploadedChunks(
+        uploadedChunksInView
+    );
     const double frustumStageMs = ElapsedMs(frustumStageStart);
     PerformanceMetrics::Instance().SetFrustumStageTime(frustumStageMs);
     PerformanceMetrics::Instance().SetVisibilityCounts(
@@ -705,11 +719,6 @@ void ChunkManager::UpdateMultiThreaded(const glm::vec3& cameraPos,const Shader& 
             chunks_.size(), uploadedChunksForCull, frustumTested, frustumRejected,
             horizonCullingEnabled_ ? candidates.size() : 0, horizonRejectedChunks,
             horizonSamplesGenerated, horizonSamplesEvaluated, drawnChunks_);
-        totalChunks_ = static_cast<int>(chunks_.size());
-        if (prevChunkCount_ != drawnChunks_){
-            LOG_DEBUG("Total Chunk Drawn: " + std::to_string(drawnChunks_) + " \nTotal Chunk: " + std::to_string(totalChunks_));
-            prevChunkCount_ = drawnChunks_;
-        }
     }
 }
 

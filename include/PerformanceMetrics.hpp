@@ -70,6 +70,7 @@ struct PerformanceSnapshot {
     bool drawStatsValid = false;
     std::uint64_t residentGpuBytes = 0;
     bool gpuMemoryTrackingValid = false;
+    std::uint64_t viewUploadedChunks = 0;
 
     // Thread-pool and upload pipeline.
     bool singleThreaded = false;
@@ -105,6 +106,7 @@ public:
     void SetGpuChunkTime(double milliseconds);
     void SetFrustumStageTime(double milliseconds);
     void SetHorizonStageTime(double milliseconds);
+    void SetViewUploadedChunks(std::uint64_t uploaded);
     void SetVisibilityCounts(
         std::uint64_t loaded,
         std::uint64_t uploaded,

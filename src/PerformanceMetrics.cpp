@@ -54,6 +54,7 @@ void PerformanceMetrics::BeginFrame() {
     current_.drawCalls = 0;
     current_.trianglesDrawn = 0;
     current_.drawStatsValid = false;
+    current_.viewUploadedChunks = 0;
 }
 
 void PerformanceMetrics::RecordFrameTime(double milliseconds) {
@@ -89,6 +90,11 @@ void PerformanceMetrics::SetFrustumStageTime(double milliseconds) {
 void PerformanceMetrics::SetHorizonStageTime(double milliseconds) {
     std::lock_guard<std::mutex> lock(mutex_);
     current_.horizonStageMs = milliseconds;
+}
+
+void PerformanceMetrics::SetViewUploadedChunks(std::uint64_t uploaded) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    current_.viewUploadedChunks = uploaded;
 }
 
 void PerformanceMetrics::SetVisibilityCounts(

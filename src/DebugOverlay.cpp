@@ -249,9 +249,10 @@ void DebugOverlay::Draw(ChunkManager& chunks, const PerformanceSnapshot& m) {
         } else {
             ImGui::Text("Actual indexed draw calls: 0 this frame");
         }
-        const float denominator = m.loadedChunks > 0 ? static_cast<float>(m.loadedChunks) : 1.0f;
-        ImGui::Text("Uploaded: %.1f%%", 100.0f * static_cast<float>(m.uploadedChunks) / denominator);
-        ImGui::ProgressBar(static_cast<float>(m.uploadedChunks) / denominator, ImVec2(-1.0f, 0.0f));
+        const float denominator = m.targetChunks > 0 ? static_cast<float>(m.targetChunks) : 1.0f;
+        const float uploadProgress = std::clamp( static_cast<float>(m.uploadedChunks) / denominator, 0.0f, 1.0f);
+        ImGui::Text("Uploaded: %.1f%%", uploadProgress * 100.0f);
+        ImGui::ProgressBar(uploadProgress, ImVec2(-1.0f, 0.0f));
     }
 
     if (ImGui::CollapsingHeader("Visibility / culling", ImGuiTreeNodeFlags_DefaultOpen)) {
