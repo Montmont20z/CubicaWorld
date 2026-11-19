@@ -168,6 +168,16 @@ bool ChunkManager::CanMesh(ChunkCoord c) const {
            ok({c.x, c.z+1}) && ok({c.x, c.z-1});
 }
 
+bool ChunkManager::TryGatherReadyNeighbors(ChunkCoord c, ChunkNeighbors& out) const {
+    auto ready = [](const std::shared_ptr<const Chunk>& n) {
+        return n && n->GetChunkState() != ChunkState::Empty;
+    };
+    ChunkNeighbors n = GatherNeighbors(c);          // takes chunksMutex_
+    if (!ready(n.px) || !ready(n.nx) || !ready(n.pz) || !ready(n.nz)) return false;
+    out = std::move(n);
+    return true;
+}
+
 void ChunkManager::UpdateSingleThreaded(const glm::vec3& cameraPos,const Shader& shader, const Camera& camera){
     
     const int camChunkX = static_cast<int>(std::floor(cameraPos.x / CHUNK_SIZE));
@@ -483,11 +493,13 @@ void ChunkManager::UpdateMultiThreaded(const glm::vec3& cameraPos,const Shader& 
             ChunkCoord coord{camChunkX + dx, camChunkZ + dz};
             auto it = chunks_.find(coord);
             if (it == chunks_.end()) continue;
-            if (!CanMesh(coord)) continue;
+            // if (!CanMesh(coord)) continue;
+            ChunkNeighbors nb;
+            if (!TryGatherReadyNeighbors(coord, nb)) continue; 
             if(!it->second->TryBeginMesh()) continue; // claims it, so no duplicate jobs // turn the ChunkState into meshing
-            EnqueueWork([this, c = it->second, coord]{
+            EnqueueWork([this, c = it->second, coord, nb = std::move(nb)]{
                 auto t = Clock::now();
-                c->BuildMesh(GatherNeighbors(coord));
+                c->BuildMesh(nb);
                 PerformanceMetrics::Instance().RecordMeshBuild(ElapsedMs(t));
                 std::lock_guard ul(uploadMutex_);
                 uploadQueue_.push(coord);

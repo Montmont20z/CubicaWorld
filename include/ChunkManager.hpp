@@ -63,6 +63,7 @@ private:
     std::size_t PendingWorkCount();
     std::size_t PendingUploadCount();
     bool CanMesh(ChunkCoord c) const;
+    bool TryGatherReadyNeighbors(ChunkCoord c, ChunkNeighbors& out) const;
 
     std::vector<Chunk*> pendingDeletes_;
     std::mutex deleteMutex_;
