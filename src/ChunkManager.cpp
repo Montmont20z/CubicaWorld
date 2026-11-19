@@ -174,11 +174,25 @@ void ChunkManager::UpdateSingleThreaded(const glm::vec3& cameraPos,const Shader&
     const int camChunkZ = static_cast<int>(std::floor(cameraPos.z / CHUNK_SIZE));
 
     // 1. Load Chunk that should exist but dont
+    // // 1a. Ensure chunks exist out to vd+1, GENERATE ONLY
+    const int genDist = viewDistance_ + 1;
+    for (int dx = -genDist; dx <= genDist; ++dx){
+       for (int dz = -genDist; dz <= genDist; ++dz) {
+           ChunkCoord coord{ camChunkX + dx, camChunkZ + dz  };
+            if (chunks_.count(coord)) continue; // return 1 if key is found, return 0 if key is not found
+
+            std::shared_ptr<Chunk> rawChunk = MakeChunk(coord);
+            chunks_[coord] = rawChunk;
+
+            auto stageStart = Clock::now();
+            rawChunk->Generate(terrainGenerator_);
+            PerformanceMetrics::Instance().RecordTerrainGeneration(ElapsedMs(stageStart));
+       }
+    }
+    // // 1b. Mesh chunks within vd whose 4 neighbors are ready (also handles Dirty)
     for (int dx = -viewDistance_; dx <= viewDistance_; ++dx){
        for (int dz = -viewDistance_; dz <= viewDistance_; ++dz) {
            ChunkCoord coord{ camChunkX + dx, camChunkZ + dz  };
-           
-
            /* Implement Spiral Outward Chunk loading order
            std::vector<ChunkCoord> loadQueue;
 
@@ -201,27 +215,22 @@ void ChunkManager::UpdateSingleThreaded(const glm::vec3& cameraPos,const Shader&
                 // ... allocate chunk and EnqueueWork here ...
             }
            */
-            std::shared_ptr<Chunk> rawChunk = nullptr;
-            { 
-                std::lock_guard lock(chunksMutex_);
-                if (chunks_.count(coord)) continue; // skip if the chunk already build
+            // Allocate Chunk (no GL yet - happens on Upload if Ready)
+            auto it = chunks_.find(coord);
+            if (it == chunks_.end()) continue;
+            
+            std::shared_ptr<Chunk> chunk = it->second;
 
-                // Allocate Chunk (no GL yet - happens on Upload if Ready)
-                rawChunk = MakeChunk(coord);
-                chunks_[coord] = rawChunk;
-            }
+            if (!CanMesh(coord)) continue;
+            if (!chunk->TryBeginMesh()) continue;
 
             // Single-threaded terrain generation, meshing and main-thread upload.
             auto stageStart = Clock::now();
-            rawChunk->Generate(terrainGenerator_);
-            PerformanceMetrics::Instance().RecordTerrainGeneration(ElapsedMs(stageStart));
-
-            stageStart = Clock::now();
-            rawChunk->BuildMesh(GatherNeighbors(coord));
+            chunk->BuildMesh(GatherNeighbors(coord));
             PerformanceMetrics::Instance().RecordMeshBuild(ElapsedMs(stageStart));
 
             stageStart = Clock::now();
-            rawChunk->UploadIfReady();
+            chunk->UploadIfReady();
             PerformanceMetrics::Instance().AddUpload(ElapsedMs(stageStart));
             PerformanceMetrics::Instance().RecordSynchronousJobCompleted();
        }
@@ -481,59 +490,6 @@ void ChunkManager::UpdateMultiThreaded(const glm::vec3& cameraPos,const Shader& 
        }
     }
 
-    // for (int dx = -viewDistance_; dx <= viewDistance_; ++dx){
-    //    for (int dz = -viewDistance_; dz <= viewDistance_; ++dz) {
-    //        ChunkCoord coord{ camChunkX + dx, camChunkZ + dz  };
-           
-    //        /* Implement Spiral Outward Chunk loading order
-    //        std::vector<ChunkCoord> loadQueue;
-
-    //         for (int dx = -viewDistance_; dx <= viewDistance_; ++dx) {
-    //             for (int dz = -viewDistance_; dz <= viewDistance_; ++dz) {
-    //                 loadQueue.push_back({ camChunkX + dx, camChunkZ + dz });
-    //             }
-    //         }
-
-    //         // Sort so chunks closest to the camera are at the FRONT of the vector
-    //         std::sort(loadQueue.begin(), loadQueue.end(), [camChunkX, camChunkZ](const ChunkCoord& a, const ChunkCoord& b) {
-    //             int distA = (a.x - camChunkX) * (a.x - camChunkX) + (a.z - camChunkZ) * (a.z - camChunkZ);
-    //             int distB = (b.x - camChunkX) * (b.x - camChunkX) + (b.z - camChunkZ) * (b.z - camChunkZ);
-    //             return distA < distB; 
-    //         });
-
-    //         // Now loop through your sorted queue to insert and EnqueueWork!
-    //         for (const auto& coord : loadQueue) {
-    //             if (chunks_.count(coord)) continue;
-    //             // ... allocate chunk and EnqueueWork here ...
-    //         }
-    //        */
-    //         std::shared_ptr<Chunk> rawChunk = nullptr;
-    //         { 
-    //             std::lock_guard lock(chunksMutex_);
-    //             if (chunks_.count(coord)) continue; // skip if the chunk already build
-
-    //             // Allocate Chunk (no GL yet - happens on Upload if Ready)
-    //             rawChunk = MakeChunk(coord);
-    //             chunks_[coord] = rawChunk;
-    //         }
-
-    //         // Push work onto thread pool
-    //         EnqueueWork([this, rawChunk, coord](){
-    //                 auto stageStart = Clock::now();
-    //                 rawChunk->Generate(terrainGenerator_);
-    //                 PerformanceMetrics::Instance().RecordTerrainGeneration(ElapsedMs(stageStart));
-
-    //                 stageStart = Clock::now();
-    //                 rawChunk->BuildMesh(GatherNeighbors(coord));
-    //                 PerformanceMetrics::Instance().RecordMeshBuild(ElapsedMs(stageStart));
-    //                 {
-    //                     std::lock_guard lock(uploadMutex_);
-    //                     uploadQueue_.push(coord);
-    //                 }
-    //         });
-    //    }
-    // }
-
     // 2. Unload Chunk outside view distance + a small buffer
     const int unloadDist = viewDistance_ + 2; // add 2 chunk buffer
     {
@@ -551,25 +507,7 @@ void ChunkManager::UpdateMultiThreaded(const glm::vec3& cameraPos,const Shader& 
     }
     DrainPendingDeletes(); // safe destructor of Chunk 
 
-    // 3. Re-enqueue Dirty chunks for remesh
-    // {
-    //     std::lock_guard lock(chunksMutex_);
-    //     for (auto& [coord, chunk] : chunks_) {
-    //         if (chunk->GetChunkState() == ChunkState::Dirty) {
-    //             std::shared_ptr<Chunk> sharedChunk = chunk;
-    //             EnqueueWork([this, sharedChunk, coord]() {
-    //                 const auto stageStart = Clock::now();
-    //                 sharedChunk->BuildMesh(GatherNeighbors(coord));
-    //                 PerformanceMetrics::Instance().RecordMeshBuild(ElapsedMs(stageStart));
-    //                 {
-    //                     std::lock_guard ul(uploadMutex_);
-    //                     uploadQueue_.push(coord);
-    //                 }
-    //             });
-    //         }
-    //     }
-    // }
-    // 4. Drain upload queue on the main thread (GL calls here)
+    // 3. Drain upload queue on the main thread (GL calls here)
     int uploads = 0;
     while (uploads < maxUploadsPerFrame_) {
         ChunkCoord coord;
@@ -591,7 +529,7 @@ void ChunkManager::UpdateMultiThreaded(const glm::vec3& cameraPos,const Shader& 
         ++uploads; 
     }
 
-    // 5. Filter all chunk that does not pass the optimization filter & Sort for rendering order
+    // 4. Filter all chunk that does not pass the optimization filter & Sort for rendering order
     Frustum frustum = camera.GetFrustum(); // build once per frame, outside the loop
 
     std::vector<RenderCandidate> candidates;
@@ -748,7 +686,7 @@ void ChunkManager::UpdateMultiThreaded(const glm::vec3& cameraPos,const Shader& 
     const double horizonStageMs = ElapsedMs(horizonStageStart);
     PerformanceMetrics::Instance().SetHorizonStageTime(horizonStageMs);
 
-    // 6. Draw all uploaded chunk
+    // 5. Draw all uploaded chunk
     // Shader is already Activate()'d by the caller
     {
         std::lock_guard lock(chunksMutex_);
