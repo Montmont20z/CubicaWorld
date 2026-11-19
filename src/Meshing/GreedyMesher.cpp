@@ -182,10 +182,10 @@ void GreedyMesher::EmitQuad(Face face, int slice, int u, int v, int width, int h
         case Face::Back:   // -Z   (u = X, v = Y)
             normal = {0,0,-1};
             positions[0] = { U + W - 0.5f, V + H, S - 0.5f };
-            positions[1] = { U - 0.5f    , V + H, S - 0.5f };
+            positions[1] = { U + W - 0.5f, V    , S - 0.5f };
             positions[2] = { U - 0.5f    , V    , S - 0.5f };
-            positions[3] = { U + W - 0.5f, V    , S - 0.5f };
-            uvs[0] = {0,0}; uvs[1] = {W,0}; uvs[2] = {W,H}; uvs[3] = {0,H};
+            positions[3] = { U - 0.5f    , V + H, S - 0.5f };
+            uvs[0] = {0,0}; uvs[1] = {0,H}; uvs[2] = {W,H}; uvs[3] = {W,0};
             break;
 
         default:
