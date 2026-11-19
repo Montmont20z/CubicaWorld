@@ -193,6 +193,9 @@ void GreedyMesher::EmitQuad(Face face, int slice, int u, int v, int width, int h
             return;
     }
 
+    const glm::vec3 winding = glm::cross(positions[1] - positions[0], positions[2] - positions[0]);
+    assert(glm::dot(winding, normal) > 0.0f && "Incorrect face winding!");
+
     const auto base = static_cast<GLuint>(out_->vertices.size());
 
     for (int i = 0; i < 4; ++i)
