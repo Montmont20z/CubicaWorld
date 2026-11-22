@@ -50,6 +50,53 @@ void APIENTRY OpenGLDebugCallback(
 }
 #endif
 
+static void ProcessSpectatorMovement(
+    GLFWwindow* window,
+    Camera& camera,
+    float deltaTime
+) {
+    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
+        glfwSetWindowShouldClose(window, true);
+    }
+
+    glm::vec3 movement(0.0f);
+
+    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+        movement += camera.GetFront();
+
+    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+        movement -= camera.GetFront();
+
+    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+        movement += camera.GetRight();
+
+    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+        movement -= camera.GetRight();
+
+    if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
+        movement += camera.GetWorldUp();
+
+    if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS)
+        movement -= camera.GetWorldUp();
+
+    // Prevent faster diagonal movement.
+    if (glm::length(movement) > 0.0f) {
+        movement = glm::normalize(movement);
+    }
+
+    constexpr float WALK_SPEED = 8.0f;
+    constexpr float SPRINT_SPEED = 100.0f;
+
+    const float speed =
+        glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS
+        ? SPRINT_SPEED
+        : WALK_SPEED;
+
+    camera.SetPosition(
+        camera.GetPosition() + movement * speed * deltaTime
+    );
+}
+
 int main() {
     Logger::Init("logs/CubicaWorld.log");
     LOG_INFO("Application starting");
@@ -124,8 +171,8 @@ int main() {
 
     // Start with the overlay visible. F3 toggles it during runtime.
     bool showDebugOverlay = overlayInitialized;
-    glfwSetInputMode(window, GLFW_CURSOR,
-        showDebugOverlay ? GLFW_CURSOR_NORMAL : GLFW_CURSOR_DISABLED);
+    bool mouseLookActive = false;
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL );
 
     // Asynchronous GPU timer-query ring. Never wait for a result in the same frame.
     constexpr std::size_t GPU_QUERY_COUNT = 5;
@@ -148,16 +195,53 @@ int main() {
         PerformanceMetrics::Instance().RecordFrameTime(deltaSeconds * 1000.0);
 
         glfwPollEvents();
+        
+        // 1. Read player input
 
+
+        // 2. Handle game mode switching
+
+
+        // 3. Update the active controller
+        //
+
+        // 4. Handle block interaction
+
+        
+        // 5. Update camera matrices
         const bool f3Down = glfwGetKey(window, GLFW_KEY_F3) == GLFW_PRESS;
         if (f3Down && !f3WasDown && overlayInitialized) {
             showDebugOverlay = !showDebugOverlay;
-            glfwSetInputMode(window, GLFW_CURSOR,
-                showDebugOverlay ? GLFW_CURSOR_NORMAL : GLFW_CURSOR_DISABLED);
+            // glfwSetInputMode(window, GLFW_CURSOR,
+            //     showDebugOverlay ? GLFW_CURSOR_NORMAL : GLFW_CURSOR_DISABLED);
         }
         f3WasDown = f3Down;
+        
+        // camera.ProcessInput(window);
+        // Right mouse button activates mouse look.
+        // The debug overlay always takes priority.
+        const bool wantsMouseLook = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS;
+        
+        if (wantsMouseLook != mouseLookActive) {
+            glfwSetInputMode(window, GLFW_CURSOR,
+                wantsMouseLook ? GLFW_CURSOR_DISABLED : GLFW_CURSOR_NORMAL
+            );
 
-        camera.ProcessInput(window);
+            mouseLookActive = wantsMouseLook;
+        }
+        
+        // Camera only handles orientation.
+        camera.ProcessMouseLook(window, mouseLookActive);
+        
+        // Spectator movement is handled 
+        ProcessSpectatorMovement(
+            window,
+            camera,
+            static_cast<float>(deltaSeconds)
+        );
+
+        // 5. Update camera matrices
+        camera.UpdateMatrix(45.0f, 0.1f, 500.0f);
 
         // Resolve completed queries without stalling the CPU.
         for (std::size_t i = 0; i < GPU_QUERY_COUNT; ++i) {
@@ -175,9 +259,10 @@ int main() {
                 gpuQueryPending[i] = false;
             }
         }
+
+        // 6. Update and render world
         glClearColor(0.53f, 0.82f, 0.98f, 1.0f); // sky blue
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        camera.UpdateMatrix(45.0f, 0.1f, 500.0f);
 
         chunkShader.Activate();
         chunkShader.SetVec3("lightPos", lightPos);
@@ -196,7 +281,7 @@ int main() {
         if (activeQueryIndex >= 0) {
             glBeginQuery(GL_TIME_ELAPSED, gpuQueries[static_cast<std::size_t>(activeQueryIndex)]);
         }
-        chunkManager.Update(camera.Position, chunkShader, camera);
+        chunkManager.Update(camera.GetPosition(), chunkShader, camera);
         if (activeQueryIndex >= 0) {
             glEndQuery(GL_TIME_ELAPSED);
             gpuQueryPending[static_cast<std::size_t>(activeQueryIndex)] = true;
