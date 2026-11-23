@@ -1,5 +1,6 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
+#include <glm/fwd.hpp>
 #include <math.h>
 #include <stb/stb_image.h>
 #include <glm/gtc/matrix_transform.hpp>
@@ -10,6 +11,7 @@
 #include <memory>
 #include <string>
 
+#include "CharacterController.hpp"
 #include "Logger.hpp"
 #include "ChunkManager.hpp"
 #include "Shader.hpp"
@@ -19,6 +21,7 @@
 #include "RenderSettings.hpp"
 #include "PerformanceMetrics.hpp"
 #include "DebugOverlay.hpp"
+#include "Player.hpp"
 
 int screenWidth = 1200;
 int screenHeight = 1200;
@@ -136,7 +139,8 @@ int main() {
     glfwSwapInterval(0); // Uncapped performance testing; use 1 for normal V-Sync gameplay.
 
     glViewport(0,0, screenWidth, screenHeight); // Maps normalized device coordinates (NDC, range [-1,1]) to window pixels. // need to change Screen width & height if resize window
-    {
+                                                
+    { // Destroy ChunkManager, Shader and Texture while the OpenGL context is still alive.
     Shader chunkShader("shaders/chunk.vert.glsl", "shaders/chunk.frag.glsl");
     ChunkManager chunkManager(VIEW_DISTANCE, IS_SINGLE_THREADED);
 
@@ -151,6 +155,8 @@ int main() {
     chunkShader.AttachTextureUnit(0, "tex0");
 
     Camera camera(screenWidth, screenHeight, glm::vec3(0.0f, 68.0f, 0.0f));
+    Player player(glm::vec3(0.0f, 68.0f - Player::DEFAULT_EYE_HEIGHT, 0.0f));
+    CharacterController characterController;
     glfwSetWindowUserPointer(window, &camera);
     glfwSetFramebufferSizeCallback(window, frameBufferCallback);
 
@@ -187,6 +193,16 @@ int main() {
 
     double previousFrameStart = glfwGetTime();
     bool f3WasDown = false;
+    
+    enum class GameMode {
+        Spectator,
+        Survival
+    };
+
+    GameMode gameMode = GameMode::Survival;
+
+    bool f1WasDown = false;
+    bool jumpWasPressed = false;
 
     while (!glfwWindowShouldClose(window)) {
         const double frameStart = glfwGetTime();
@@ -197,13 +213,26 @@ int main() {
         glfwPollEvents();
         
         // 1. Read player input
-
-
+        
         // 2. Handle game mode switching
+        const bool f1Down = glfwGetKey(window, GLFW_KEY_F1) == GLFW_PRESS;
+        
+        if (f1Down && !f1WasDown){
+            if (gameMode == GameMode::Spectator){
+                // Camera position represents the player's eye position.
+                player.SetPosition(camera.GetPosition() - glm::vec3(0.0f, player.GetEyeHeight(), 0.0f));
+                
+                player.SetVelocity(glm::vec3(0.0f));
+                player.SetGrounded(false);
+                gameMode = GameMode::Survival;
+            } else {
+                gameMode = GameMode::Spectator;
+            }
+        }
+        f1WasDown = f1Down;
 
 
         // 3. Update the active controller
-        //
 
         // 4. Handle block interaction
 
@@ -233,12 +262,41 @@ int main() {
         // Camera only handles orientation.
         camera.ProcessMouseLook(window, mouseLookActive);
         
-        // Spectator movement is handled 
-        ProcessSpectatorMovement(
-            window,
-            camera,
-            static_cast<float>(deltaSeconds)
-        );
+        // Handle Player Movement 
+        if (gameMode == GameMode::Spectator) {
+            ProcessSpectatorMovement(
+                window,
+                camera,
+                static_cast<float>(deltaSeconds)
+            );
+        } else {
+            PlayerInput input{};
+            input.forward =
+                (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS ? 1.0f : 0.0f) -
+                (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS ? 1.0f : 0.0f);
+
+            input.right =
+                (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS ? 1.0f : 0.0f) -
+                (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS ? 1.0f : 0.0f);
+
+            const bool isJumpPressed = glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS;
+
+            input.jumpPressed = isJumpPressed && !jumpWasPressed;
+            input.sprintHeld = glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS;
+
+            jumpWasPressed = isJumpPressed;
+
+            characterController.Update(
+                player,
+                input,
+                camera,
+                chunkManager,
+                static_cast<float>(deltaSeconds)
+            );
+
+            // Camera follows the player's eyes.
+            camera.SetPosition(player.GetEyePosition());
+        }
 
         // 5. Update camera matrices
         camera.UpdateMatrix(45.0f, 0.1f, 500.0f);

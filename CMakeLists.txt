@@ -43,6 +43,7 @@ add_executable(cubica
     src/Meshing/GreedyMesher.cpp
     src/Meshing/NaiveMesher.cpp
     src/Player.cpp
+    src/CharacterController.cpp
 
     # Performance overlay
     src/PerformanceMetrics.cpp

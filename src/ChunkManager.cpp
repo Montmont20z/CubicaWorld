@@ -1,4 +1,5 @@
 #include "ChunkManager.hpp"
+#include "BlockType.hpp"
 #include "Chunk.hpp"
 #include "Constants.hpp"
 #include "Logger.hpp"
@@ -16,6 +17,24 @@
 #include <string>
 #include <vector>
 
+namespace {
+using Clock = std::chrono::steady_clock;
+inline double ElapsedMs(Clock::time_point start) {
+    return std::chrono::duration<double, std::milli>(Clock::now() - start).count();
+}
+
+int FloorDiv(int value, int divisor) {
+    int quotient = value / divisor;
+    int remainder = value % divisor;
+
+    if (remainder < 0)
+        --quotient;
+
+    return quotient;
+}
+} // namespace
+
+
 ChunkManager::ChunkManager(int viewDistance, bool isSingleThreaded)
     : viewDistance_(viewDistance)
     , isSingleThreaded_(isSingleThreaded)
@@ -31,13 +50,6 @@ ChunkManager::ChunkManager(int viewDistance, bool isSingleThreaded)
     }
 }
 
-namespace {
-using Clock = std::chrono::steady_clock;
-inline double ElapsedMs(Clock::time_point start) {
-    return std::chrono::duration<double, std::milli>(Clock::now() - start).count();
-}
-}
-
 void ChunkManager::SetViewDistance(int distance) noexcept {
     viewDistance_ = std::clamp(distance, 2, 64);
 }
@@ -51,6 +63,44 @@ std::size_t ChunkManager::PendingUploadCount() {
     std::lock_guard<std::mutex> lock(uploadMutex_);
     return uploadQueue_.size();
 }
+
+BlockQueryResult ChunkManager::QueryBlock(const glm::ivec3& worldPosition) const {
+    const int worldX = worldPosition.x;
+    const int worldY = worldPosition.y;
+    const int worldZ = worldPosition.z;
+
+    // World vertical boundaries.
+    // Treat the bottom of the world as solid.
+    if (worldY < 0)
+        return BlockQueryResult::Solid;
+
+    // Above the world is empty.
+    if (worldY >= CHUNK_HEIGHT)
+        return BlockQueryResult::Air;
+    
+    // Convert world coordinates into chunk coordinates.
+    const int chunkX = FloorDiv(worldX, CHUNK_SIZE);
+    const int chunkZ = FloorDiv(worldZ, CHUNK_SIZE);
+    
+    // Convert world coordinates into local chunk coordinates
+    const int localX = worldX - chunkX * CHUNK_SIZE;
+    const int localZ = worldZ - chunkZ * CHUNK_SIZE;
+    
+    // Obtain a shared reference so the chunk cannot be destroyed
+    // while we're reading it.
+    auto chunk = GetChunkUnlocked({chunkX, chunkZ});
+    
+    if (!chunk) return BlockQueryResult::Unknown;
+    
+    // Generation hasn't finished.
+    // Acquire observes the Generate() release store.
+    if (chunk->GetChunkState() == ChunkState::Empty) return BlockQueryResult::Unknown;
+    
+    const BlockType block = chunk->GetBlock(localX, worldY, localZ);
+
+    return block == BlockType::Air ? BlockQueryResult::Air : BlockQueryResult::Solid;
+}
+
 
 ChunkManager::~ChunkManager()
 {
@@ -123,6 +173,12 @@ void ChunkManager::EnqueueWork(std::function<void()> fn){
 }
 
 std::shared_ptr<const Chunk> ChunkManager::GetChunk(ChunkCoord coord) const {
+    std::lock_guard lock(chunksMutex_);
+    return GetChunkUnlocked(coord);
+}
+
+
+std::shared_ptr<const Chunk> ChunkManager::GetChunkUnlocked(ChunkCoord coord) const {
     auto it = chunks_.find(coord);
     return it != chunks_.end() ? it->second : nullptr; // get the chunk pointer, if not found nullptr
 }
@@ -132,10 +188,10 @@ ChunkNeighbors ChunkManager::GatherNeighbors(ChunkCoord coord) const
     {
         std::lock_guard lock(chunksMutex_);
         return {
-            GetChunk({coord.x + 1, coord.z}),
-            GetChunk({coord.x - 1, coord.z}),
-            GetChunk({coord.x, coord.z + 1}),
-            GetChunk({coord.x, coord.z - 1}),
+            GetChunkUnlocked({coord.x + 1, coord.z}),
+            GetChunkUnlocked({coord.x - 1, coord.z}),
+            GetChunkUnlocked({coord.x, coord.z + 1}),
+            GetChunkUnlocked({coord.x, coord.z - 1}),
         };
     }
 }
@@ -161,7 +217,7 @@ void ChunkManager::DrainPendingDeletes()
 
 bool ChunkManager::CanMesh(ChunkCoord c) const {
     auto ok = [&](ChunkCoord n) {
-        auto ch = GetChunk(n);
+        auto ch = GetChunkUnlocked(n);
         return ch && ch->GetChunkState() != ChunkState::Empty; // Empty == Generate not finished
     };
     return ok({c.x+1, c.z}) && ok({c.x-1, c.z}) &&

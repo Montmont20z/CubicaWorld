@@ -18,6 +18,12 @@ Do the heavy math on background threads, and do the rendering/GPU uploads exclus
 #include "Camera.hpp"
 #include "RenderSettings.hpp"
 
+enum class BlockQueryResult : std::uint8_t {
+    Unknown, // Chunk missing or still generating
+    Air,
+    Solid
+};
+
 class ChunkManager {
 public:
     explicit ChunkManager(int viewDistance = 8, bool isSingleThreaded = false);
@@ -43,6 +49,7 @@ public:
     bool IsHorizonCullingEnabled() const noexcept { return horizonCullingEnabled_; }
     void SetFrustumCullingEnabled(bool enabled) noexcept { frustumCullingEnabled_ = enabled; }
     void SetHorizonCullingEnabled(bool enabled) noexcept { horizonCullingEnabled_ = enabled; }
+    BlockQueryResult QueryBlock(const glm::ivec3& worldPosition) const;
 
 private:
     struct WorkItem {
@@ -64,6 +71,7 @@ private:
     std::size_t PendingUploadCount();
     bool CanMesh(ChunkCoord c) const;
     bool TryGatherReadyNeighbors(ChunkCoord c, ChunkNeighbors& out) const;
+    std::shared_ptr<const Chunk> GetChunkUnlocked(ChunkCoord coord) const;
 
     std::vector<Chunk*> pendingDeletes_;
     std::mutex deleteMutex_;
